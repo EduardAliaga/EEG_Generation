@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 def read_subject_data(data_path, sensors):
     inquiries = []
