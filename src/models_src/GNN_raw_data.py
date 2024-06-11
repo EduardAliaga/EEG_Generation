@@ -62,7 +62,7 @@ model = GCN(num_timesteps, 64, num_timesteps)
 optimizer = torch.optim.Adam(list(model.parameters()) + [A], lr=0.01)
 
 # Training loop
-num_epochs = 10000
+num_epochs = 1000
 train_losses = []
 test_losses = []
 

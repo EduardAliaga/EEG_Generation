@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
-class Linear_Model(nn.Module):
+
+class Measurement_Model(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
-        super(Linear_Model, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
+        super(Measurement_Model, self).__init__()
+        self.fc1 = nn.Linear(input_size, output_size)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, 2*hidden_size)
         self.relu2 = nn.ReLU()
@@ -14,12 +16,6 @@ class Linear_Model(nn.Module):
         self.fc4 = nn.Linear(hidden_size, output_size)
     def forward(self, x):
         out = self.fc1(x)
-        out = self.relu(out)
-        out = self.fc2(out)
-        out = self.relu2(out)
-        out = self.fc3(out)
-        out = self.relu3(out)
-        out = self.fc4(out)
         return out
 
 
@@ -45,14 +41,14 @@ class RNODE(nn.Module):
         # Parameters to learn
         self.in_mat = nn.Parameter(torch.randn(input_dim, input_dim))
         self.W = nn.Parameter(torch.randn(input_dim, input_dim))
-        self.theta = 1 # Scalar parameter per input dimension
-        self.tau = 10  # Scalar parameter
+        self.theta = nn.Parameter(torch.tensor(1.0, requires_grad=True)) # Scalar parameter per input dimension
+        self.tau = nn.Parameter(torch.tensor(100.0, requires_grad=True))  # Scalar parameter
 
         # Activation function
-        self.sigma = nn.Sigmoid()
+        self.sigma = nn.Sigmoid() #change sigmoid
 
     def forward(self, x, u, dt):
-        dxdt = -x / self.tau + self.W @ self.sigma(x + self.theta) + self.in_mat @ u
+        dxdt = -x / self.tau + self.W @ self.sigma(x*self.theta) + self.in_mat @ u
         x = x + dxdt * dt
         return x
     
@@ -62,15 +58,17 @@ class CombinedModel(nn.Module):
         self.rnode = rnode
         self.feedforward = feedforward
         self.input_dim = input_dim
-
     def forward(self, u, dt):
-        batch_size, channels, seq_len = u.shape
-        outputs = torch.zeros(batch_size, channels, seq_len)
-        membrane_potentials = torch.zeros(batch_size, channels, seq_len)
-        for b in range(batch_size):
-            x = torch.zeros(channels)
+        inquiry_size, channels, seq_len = u.shape
+        outputs = torch.zeros(inquiry_size, channels, seq_len)
+        membrane_potentials = torch.zeros(inquiry_size, channels, seq_len)
+        #initialize x
+        x = torch.zeros(channels) 
+        for i_inquiry in range(inquiry_size):
             for t in range(seq_len):
-                x = self.rnode(x, u[b, :, t], dt)
-                outputs[b, :, t] = self.feedforward(x)
-                membrane_potentials[b, :, t] = x
+                x = self.rnode(x, u[i_inquiry, :, t], dt)
+                outputs[i_inquiry, :, t] = self.feedforward(x)
+                membrane_potentials[i_inquiry, :, t] = x
         return outputs, membrane_potentials
+    
+"""remove batches, train on the first 80% ones and test on the 20%"""

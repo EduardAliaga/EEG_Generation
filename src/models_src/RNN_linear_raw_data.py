@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '../')
 import data.get_raw_data as grd
-from models_src.models import RNODE, Linear_Model, CombinedModel
+from models_src.models import RNODE, Measurement_Model, CombinedModel
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,7 +14,7 @@ input_dim = 3
 hidden_dim = 256
 # Initialize models
 rnode = RNODE(input_dim)
-feedforward = Linear_Model(input_dim, hidden_dim, input_dim)
+feedforward = Measurement_Model(input_dim, hidden_dim, input_dim)
 model = CombinedModel(rnode, feedforward, input_dim)
 
 # Loss function and optimizer
@@ -33,6 +33,7 @@ for inquiry in raw_inquiries:
     stm = np.array(inquiry['stimuli_signal']) + 10
     stimulis.append([stm, stm, stm])
 
+#Discarding initial and last inquiries because of variance due to external stimulis
 stimulis = stimulis[10:90]
 inquiries_per_channels = inquiries_per_channels[10:90]
 
@@ -41,12 +42,17 @@ input_stimuli_signals = torch.tensor(stimulis, dtype=torch.float32)  # Example s
 time_series_eeg_data = torch.tensor(inquiries_per_channels, dtype=torch.float32).reshape(80, 3, 3030)  # Example shape (100, 3, 3030)
 print(input_stimuli_signals.shape)
 print(time_series_eeg_data.shape)
-
+ratio_train = 0.75
+n_samples = len(inquiries_per_channels)
+train_inputs = input_stimuli_signals[:int(ratio_train * n_samples)]
+test_inputs = input_stimuli_signals[int(ratio_train * n_samples):]
+train_targets = time_series_eeg_data[:int(ratio_train * n_samples)]
+test_targets = time_series_eeg_data[int(ratio_train * n_samples):]
 # Train-test split
-train_inputs, test_inputs, train_targets, test_targets = train_test_split(input_stimuli_signals, time_series_eeg_data, test_size=0.2, random_state=42)
+#train_inputs, test_inputs, train_targets, test_targets = train_test_split(input_stimuli_signals, time_series_eeg_data, test_size=0.2, random_state=42)
 
 num_epochs = 10
-dt = 0.01
+dt = 1/300
 
 for epoch in range(num_epochs):
     model.train()
@@ -54,7 +60,7 @@ for epoch in range(num_epochs):
 
     # Forward pass
     output, membrane_potentials = model(train_inputs, dt)
-    loss = criterion(membrane_potentials, train_targets)
+    loss = criterion(output, train_targets)
 
     # Backward pass and optimization
     loss.backward()
@@ -66,7 +72,7 @@ for epoch in range(num_epochs):
 model.eval()
 with torch.no_grad():
     test_output, test_membrane_potentials = model(test_inputs, dt)
-    test_loss = criterion(test_membrane_potentials, test_targets)
+    test_loss = criterion(test_output, test_targets)
     print(f'Test Loss: {test_loss.item()}')
 
 # Plotting results for one sample from the test set
