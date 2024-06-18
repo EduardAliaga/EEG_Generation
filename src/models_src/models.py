@@ -7,7 +7,7 @@ import numpy as np
 class Measurement_Model(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(Measurement_Model, self).__init__()
-        self.fc1 = nn.Linear(input_size, output_size)
+        self.fc1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, 2*hidden_size)
         self.relu2 = nn.ReLU()
@@ -15,9 +15,27 @@ class Measurement_Model(nn.Module):
         self.relu3 = nn.ReLU()
         self.fc4 = nn.Linear(hidden_size, output_size)
     def forward(self, x):
-        out = self.fc1(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        x = self.relu(x)
+        out = self.fc4(x)
         return out
-
+    
+class EEGModel(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(EEGModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)
+    
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 class RNNModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
@@ -71,4 +89,3 @@ class CombinedModel(nn.Module):
                 membrane_potentials[i_inquiry, :, t] = x
         return outputs, membrane_potentials
     
-"""remove batches, train on the first 80% ones and test on the 20%"""
