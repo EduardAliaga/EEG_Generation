@@ -131,7 +131,6 @@ def recursive_update (x, eeg_model, theta, W, M, tau, u, y, dt, P_x_, P_x, Q_x, 
         loss.backward()
         optimizer.step()
 
-
         P_x_ = F_x @ P_x @ F_x.T + Q_x
         P_x = P_x_ @ (I + H @ (R_y - H @ P_x_ @ H.T) @ H @ P_x_)
         params = params_pred - P_params_ @ F_params.T @ (residual_x) 
