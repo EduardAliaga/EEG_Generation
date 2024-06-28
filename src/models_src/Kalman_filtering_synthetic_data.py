@@ -10,34 +10,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 # Define sigmoid
 def sigmoid(x, theta):
-     x_clipped = np.clip(x * theta, -100, 100)
-     return 1 / (1 + np.exp(-x*theta))
+     
+     return theta[0] / (1 + np.exp(-np.dot(theta[1: ], x)))
+
 
 def sigmoid_derivative(x, theta, d):
     sig = sigmoid(x, theta)
+
+    # TODO: I think the follwoing equations are not correct.
+    # TODO: What about the derivative for the parameter that defines 
+    # the amplitude of the sigmoid?
     if d == 'd_x':
-        return theta * sig * (1 - sig)
-    if d == 'd_theta':
-        return x * sig * (1 - sig)
-# # Load raw inquiries
-# raw_inquiries = grd.process_eeg_and_triggers(
-#     eeg_file_path='/Users/aliag/Desktop/Data/S002/S002_Matrix_Calibration_Thu_18_May_2023_12hr43min40sec_-0400/raw_data_2.csv',
-#     triggers_file_path='/Users/aliag/Desktop/Data/S002/S002_Matrix_Calibration_Thu_18_May_2023_12hr43min40sec_-0400/triggers_2.txt'
-# )
+        return theta * sig * (1 - sig / theta[0])
+    elif d == 'd_theta':
+        return x * sig * (1 - sig / theta[0])
+    elif d == 'd_theta_0':
+        return sig / theta[0]
 
-# inquiries_per_channels = []
-# stimulis = []
-# for inquiry in raw_inquiries:
-#     inquiries_per_channels.append(np.array(inquiry[['Cz', 'O1', 'O2']]))
-#     stm = np.array(inquiry['stimuli_signal'])
-#     stimulis.append([stm, stm, stm])
-
-# stimulis = stimulis[10:90]
-# inquiries_per_channels = inquiries_per_channels[10:90]
-# Check shapes of membrane potentials
-# Define the EEGModel
 
 # Define the functions
 def get_norm_squared_error(x, x_hat, regularization_term=1e-6):
