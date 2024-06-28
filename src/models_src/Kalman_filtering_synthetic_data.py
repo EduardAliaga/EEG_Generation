@@ -1,14 +1,9 @@
 import sys
 sys.path.insert(0, '../')
 import numpy.random as rnd
-import data.get_raw_data as grd
-from models_src.models import Measurement_Model
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
+
 
 # Define sigmoid
 def sigmoid(x, theta):
@@ -61,6 +56,7 @@ def jacobian_f_o_x(x, theta, W, tau, dt, function):
     if function == 'sigmoid':
         fx = sigmoid(x, theta)
         diag_matrix = np.diag(sigmoid_derivative(x, theta,'d_x'))
+
     elif function == 'tanh':
         fx = np.tanh(x)
         diag_matrix = np.diag(1 - fx ** 2)
@@ -92,21 +88,24 @@ def jacobian_f_o(x, u, theta, W, M, tau, dt, function):
     F_tau = jacobian_f_o_tau(x, theta, W, tau, dt).reshape(2, 1)
     F_theta = jacobian_f_o_theta(x, theta, W, tau, dt, function)
     if function == 'sigmoid':
-        J_combined = np.hstack((F_W, F_M_array, F_tau, F_theta))
+       J_combined = np.hstack((F_W, F_M_array, F_tau, F_theta))
     else:
         J_combined = np.hstack((F_W, F_M_array, F_tau))
     return J_combined
 
-def recursive_update (x, theta, W, M, H, tau, u, y, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params,R_y, function, num_iterations):
+def recursive_update(x, theta, W, M, H, tau, u, y, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params, R_y, function, num_iterations, real_params):
     membrane_potentials_predicted = []
     dim_latent = len(x)
     if function == 'sigmoid':
-        params = np.hstack((W.flatten(), M, tau, theta_init))
+        params = np.hstack((W.flatten(), M, tau, theta))
     else:
         params = np.hstack((W.flatten(), M, tau))
+    
+    # Initialize list to track norm squared errors for each parameter
+    norm_squared_errors = {i: [] for i in range(len(params))}
+
     membrane_potentials_predicted.append(x)
     for t in range(1, num_iterations):
- 
         W = params[:dim_latent**2].reshape((dim_latent, dim_latent))
         M = params[dim_latent**2]
         tau = params[dim_latent**2 + 1]
@@ -116,16 +115,16 @@ def recursive_update (x, theta, W, M, H, tau, u, y, dt, P_x_, P_x, Q_x, P_params
 
         params_hat = g_o(params)
 
-        F_x = jacobian_f_o_x(x, theta, W, tau, dt, f)
-        F_params = jacobian_f_o(x, u[t-1], theta, W, M, tau, dt, f)
+        F_x = jacobian_f_o_x(x, theta, W, tau, dt, function)
+        F_params = jacobian_f_o(x, u[t-1], theta, W, M, tau, dt, function)
 
-        x_hat = f_o(x, u[t-1], theta, W, M, tau, dt, f)    
+        x_hat = f_o(x, u[t-1], theta, W, M, tau, dt, function)
         y_hat = H @ x_hat
-
         x_pred_array = np.array([x_hat])
-        H = np.linalg.inv(x_pred_array.T @ x_pred_array) @ x_pred_array.T @ np.array([y_hat])
-        #With a fixed and known H, the algorithm works fine (the parameters obtained are not the same but the result is)
-
+        #H = np.linalg.inv(x_pred_array.T@x_pred_array)@x_pred_array.T@y_hat
+        H = np.linalg.lstsq(x_pred_array, y_hat.reshape(1,-1))[0]
+        print(H)
+        print(x_hat)
         S = H @ P_x_ @ H.T + R_y 
         S_inv = np.linalg.inv(S)
 
@@ -141,8 +140,13 @@ def recursive_update (x, theta, W, M, H, tau, u, y, dt, P_x_, P_x, Q_x, P_params
         P_params = P_params_ + Q_params
 
         membrane_potentials_predicted.append(x)
-            
-    return x, np.array(membrane_potentials_predicted), W, M, H, tau, P_x_, P_x, P_params_, P_params
+        
+        # Calculate norm squared errors for each parameter
+        for i in range(len(params)):
+            norm_error = get_norm_squared_error(params[i], real_params[i])
+            norm_squared_errors[i].append(norm_error)
+
+    return x, np.array(membrane_potentials_predicted), W, M, H, tau, P_x_, P_x, P_params_, P_params, norm_squared_errors
 
 
 n_stimuli = int(1e3)
@@ -153,24 +157,29 @@ for i_stimulus in range(0, n_stimuli, period_square):
     if (i_stimulus // period_square) % 2:
         stimuli[i_stimulus: i_stimulus + period_square] = np.ones(period_square)
 
-tau = 1e2
+#tau = 1e2
+tau = 100.16952364213884
 dt = 1
 theta = 1.0
 W = np.zeros((2,2))
 W[0,1] = 1e-1
 W[1,0] = -1e-1
-# M = np.zeros((2,2))
-M = 100
+W = np.array([[ 0.17300798,  0.37300825],
+ [-0.32451377,  0.17548648]
+])
+print(W.flatten().reshape((2,2)))
+#M = 100
+M = 30.3475543556954
 
 membrane_potentials = np.zeros((n_stimuli, 2))
 membrane_potentials[0] = np.array([-70, -70])
-H = np.array([[-1, 1], [0.5, 0.5]])
-#H = np.array([[1, 0.7], [0.5, 0.8]])
+#H = np.array([[1, 0], [0, 1]])
+H = np.array([[1, 0.7], [0.5, 0.8]])
 measurements = np.zeros((n_stimuli, 2))
 measurements[0] = H @ membrane_potentials[0]
 # Generate membrane potentials
 
-f = 'sigmoid'
+f = 'linear'
 for t in range(1, n_stimuli):
     x = membrane_potentials[t-1]
     if f == 'sigmoid':
@@ -186,26 +195,52 @@ measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(2), co
 
 if f == 'sigmoid':
     n_params = 7
+    real_params = np.hstack((W.flatten(), M, tau, theta))
 else:
     n_params = 6
+    real_params = np.hstack((W.flatten(), M, tau))
 dim_timestep = len(x)
-Q_x = np.eye(dim_timestep) * 1e-8
-R_y = np.eye(dim_timestep) * 1e-8
-P_x_ = np.eye(dim_timestep) * 1e-8
-P_x = np.eye(dim_timestep) * 1e-8
-P_params_ = np.eye(n_params) * 1e-8
-P_params = np.eye(n_params) * 1e-8
-Q_params = np.eye(n_params) * 1e-8
-W_init = np.array([[0,0.2],[-0.5, 0]])
+Q_x = np.eye(dim_timestep) * 1e-5
+R_y = np.eye(dim_timestep) * 1e-5
+P_x_ = np.eye(dim_timestep) * 10
+P_x = np.eye(dim_timestep) * 10
+P_params_ = np.eye(n_params) * 1
+P_params = np.eye(n_params) * 1
+Q_params = np.eye(n_params) * 1e-2
+W_init = np.array([[0.1,0.2],[-0.5, 0.3]])
 M_init = 30
-H_init = np.array([[-1.4, -0.5], [-0.4, -0.6]])
+H_init = np.array([[1, 0], [0, 1]])
 theta_init = 0.5
-
+x = membrane_potentials[0]
 membrane_potentials_predicted = []
-x, membrane_potentials_n, W, M, H, tau, P_x_, P_x, P_params_, P_params = recursive_update(
-    x, theta_init, W_init, M_init, H, tau, stimuli, measurements_noisy, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params, R_y, f, n_stimuli)
+x, membrane_potentials_n, W, M, H, tau, P_x_, P_x, P_params_, P_params, norm_squared_errors = recursive_update(
+    x, theta_init, W_init, M_init, H_init, tau, stimuli, measurements_noisy, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params, R_y, f, n_stimuli, real_params)
 membrane_potentials_predicted.append(membrane_potentials_n)
 membrane_potentials_predicted = np.array(membrane_potentials_predicted)
+
+print('estimated M')
+print(M)
+print('real M')
+print(real_params[4])
+
+print('real W')
+print(real_params[:4].reshape((2,2)))
+
+print('estimated W')
+print(W)
+
+print('real tau')
+print(real_params[5])
+
+print('estimated tau')
+print(tau)
+
+if len(real_params) == 7:
+    print('real theta')
+    print(real_params[6])
+
+    print('estimated theta')
+    print(theta)
 
 print(f"Membrane potentials shape: {membrane_potentials_predicted.shape}")
 
@@ -308,5 +343,43 @@ plt.xlabel("Time (ms)")
 plt.ylabel("Membrane Potential (mV)")
 plt.legend()
 
+titles = ['W_11', 'W_12', 'W_21', 'W_22']
+
+# Create a figure with subplots for the W parameters
+fig, axs = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+
+# Plot each W parameter's error in its own subplot
+for i in range(4):
+    axs[i].semilogy(norm_squared_errors[i], label=titles[i])
+    axs[i].set_ylabel('Norm Squared Error')
+    axs[i].set_title(f'Norm Squared Error for {titles[i]}')
+    axs[i].legend()
+
+# Set the x-axis label for the last subplot
+axs[-1].set_xlabel('Iteration')
+
+plt.tight_layout()
+
+plt.figure(figsize=(10, 6))
+plt.semilogy(norm_squared_errors[4], label='M')
+plt.xlabel('Iteration')
+plt.ylabel('Norm Squared Error')
+plt.title('Norm Squared Error for M')
+plt.legend()
+
+plt.figure(figsize=(10, 6))
+plt.semilogy(norm_squared_errors[5], label='tau')
+plt.xlabel('Iteration')
+plt.ylabel('Norm Squared Error')
+plt.title('Norm Squared Error for tau')
+plt.legend()
+
+if len(norm_squared_errors) == 7:
+    plt.figure(figsize=(10, 6))
+    plt.semilogy(norm_squared_errors[6], label='theta')
+    plt.xlabel('Iteration')
+    plt.ylabel('Norm Squared Error')
+    plt.title('Norm Squared Error for theta')
+    plt.legend()
 # Show all plots
 plt.show()
