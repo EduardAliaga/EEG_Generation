@@ -12,23 +12,43 @@ import pandas as pd
 
 
 # Define sigmoid
+def sigmoid_single(x, theta):
+    """
+    Sigmoid on a single state.
+    """
+
+    return 1 / (1 + np.exp(-np.dot(theta, x)))
+
+
 def sigmoid(x, theta):
-     
-     return theta[0] / (1 + np.exp(-np.dot(theta[1: ], x)))
+    n_dims = len(x)
+    output = np.zeros_like(x)
+    for dim in range(n_dims):
+        output[dim] = sigmoid_single(x, theta[dim])
+    
+    return output
 
 
+# TODO: Check.
 def sigmoid_derivative(x, theta, d):
-    sig = sigmoid(x, theta)
+    """
+    Gradients of a sigmoid function.
+    """
+    n_dims = len(x)
+    output = np.zeros_like(x)
+    for dim in range(n_dims):
+        output[dim] = sigmoid_derivative_single(x, theta, d)
+    
+    return output
 
-    # TODO: I think the follwoing equations are not correct.
-    # TODO: What about the derivative for the parameter that defines 
-    # the amplitude of the sigmoid?
+
+# TODO: Check.
+def sigmoid_derivative_single(x, theta, d):
+    sig = sigmoid(x, theta)
     if d == 'd_x':
-        return theta * sig * (1 - sig / theta[0])
+        return theta * sig * (1 - sig)
     elif d == 'd_theta':
-        return x * sig * (1 - sig / theta[0])
-    elif d == 'd_theta_0':
-        return sig / theta[0]
+        return x * sig * (1 - sig)
 
 
 # Define the functions
@@ -75,6 +95,7 @@ def jacobian_f_o_tau(x, theta, W, tau, dt):
 
 def jacobian_f_o_theta(x, theta, W, tau, dt, function):
     derivative = np.array([sigmoid_derivative(x, theta, 'd_theta')])
+
     return dt*(W @ derivative.T)
 
 def jacobian_f_o(x, u, theta, W, M, tau, dt, function):
@@ -147,11 +168,13 @@ for i_stimulus in range(0, n_stimuli, period_square):
 
 tau = 1e2
 dt = 1
-theta = 1.0
-W = np.zeros((2,2))
+
+n_dims = 2
+W = np.zeros((n_dims, n_dims))
 W[0,1] = 1e-1
 W[1,0] = -1e-1
-# M = np.zeros((2,2))
+theta = np.eye(n_dims)
+
 M = 100
 
 membrane_potentials = np.zeros((n_stimuli, 2))
@@ -165,7 +188,9 @@ measurements[0] = H @ membrane_potentials[0]
 f = 'sigmoid'
 for t in range(1, n_stimuli):
     x = membrane_potentials[t-1]
+    print(f"x {x}")
     if f == 'sigmoid':
+        # TODO: Check this equation.
         membrane_potentials[t] = x + dt * (-x / tau + W @ sigmoid(x, theta) + M * stimuli[t-1])
     elif f == 'tanh':
         membrane_potentials[t] = x + dt * (-x / tau + W @ np.tanh(x) + M * stimuli[t-1])
