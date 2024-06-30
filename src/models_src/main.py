@@ -1,21 +1,27 @@
-import argparse
-from train import train
-from validate import validate
+import numpy as np
+from generate_data import generate_synthetic_data
+from parameter_and_state_estimation import estimate_parameters_and_states
+from visualize import plot_all
 
-def main(data_path, num_epochs, batch_size, learning_rate, model_path):
-    # Train the model
-    train(data_path, num_epochs, batch_size, learning_rate, model_path)
-    # Validate the model
-    validate(data_path, model_path, batch_size)
+def main():
+    """# Step 1: Generate synthetic data
+    tau = 100.
+    dt = 1
+    theta = 1.0
+    M = 100
+    n_stimuli = int(1e3)
+    period_square = 10
+    W = np.zeros((2,2))
+    W[0,1] = 1e-1
+    W[1,0] = -1e-1
+    H = np.array([[1, 0.7], [0.5, 0.8]])
+    generate_synthetic_data(n_stimuli, period_square, W, H, tau, dt, theta, M)"""
+
+    # Step 2: Estimate parameters and states
+    estimate_parameters_and_states()
+
+    # Step 3: Plot results
+    plot_all()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train and validate a simple model on synthetic data.')
-    parser.add_argument('--data_path', type=str, required=True, help='Path to the data directory')
-    parser.add_argument('--num_epochs', type=int, default=500, help='Number of epochs for training')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and evaluation')
-    parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate for the optimizer')
-    parser.add_argument('--model_path', type=str, required=True, help='Path to save the trained model')
-
-    args = parser.parse_args()
-    
-    main(args.data_path, args.num_epochs, args.batch_size, args.learning_rate, args.model_path)
+    main()

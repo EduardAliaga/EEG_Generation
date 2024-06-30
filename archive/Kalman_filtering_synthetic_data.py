@@ -122,9 +122,8 @@ def recursive_update(x, theta, W, M, H, tau, u, y, dt, P_x_, P_x, Q_x, P_params_
         y_hat = H @ x_hat
         x_pred_array = np.array([x_hat])
         #H = np.linalg.inv(x_pred_array.T@x_pred_array)@x_pred_array.T@y_hat
-        H = np.linalg.lstsq(x_pred_array, y_hat.reshape(1,-1))[0]
-        print(H)
-        print(x_hat)
+        #H = np.linalg.lstsq(x_pred_array, y_hat.reshape(1,-1))[0]
+
         S = H @ P_x_ @ H.T + R_y 
         S_inv = np.linalg.inv(S)
 
@@ -158,18 +157,18 @@ for i_stimulus in range(0, n_stimuli, period_square):
         stimuli[i_stimulus: i_stimulus + period_square] = np.ones(period_square)
 
 #tau = 1e2
-tau = 100.16952364213884
+tau = 100.
 dt = 1
 theta = 1.0
 W = np.zeros((2,2))
 W[0,1] = 1e-1
 W[1,0] = -1e-1
-W = np.array([[ 0.17300798,  0.37300825],
- [-0.32451377,  0.17548648]
-])
-print(W.flatten().reshape((2,2)))
-#M = 100
-M = 30.3475543556954
+#W = np.array([[ 0.17300798,  0.37300825],
+# [-0.32451377,  0.17548648]
+#])
+
+M = 100
+#M = 30.3475543556954
 
 membrane_potentials = np.zeros((n_stimuli, 2))
 membrane_potentials[0] = np.array([-70, -70])
@@ -199,22 +198,25 @@ if f == 'sigmoid':
 else:
     n_params = 6
     real_params = np.hstack((W.flatten(), M, tau))
+
 dim_timestep = len(x)
-Q_x = np.eye(dim_timestep) * 1e-5
-R_y = np.eye(dim_timestep) * 1e-5
-P_x_ = np.eye(dim_timestep) * 10
-P_x = np.eye(dim_timestep) * 10
-P_params_ = np.eye(n_params) * 1
-P_params = np.eye(n_params) * 1
-Q_params = np.eye(n_params) * 1e-2
-W_init = np.array([[0.1,0.2],[-0.5, 0.3]])
+Q_x = np.eye(dim_timestep) * 1e-8
+R_y = np.eye(dim_timestep) * 1e-8
+P_x_ = np.eye(dim_timestep) * 1e-8
+P_x = np.eye(dim_timestep) * 1e-8
+P_params_ = np.eye(n_params) * 1e-8
+P_params = np.eye(n_params) * 1e-8
+Q_params = np.eye(n_params) * 1e-8
+W_init =  np.array([[0.1,0.2],[-0.5, 0.3]])
 M_init = 30
 H_init = np.array([[1, 0], [0, 1]])
+tau_init = 80
+
 theta_init = 0.5
 x = membrane_potentials[0]
 membrane_potentials_predicted = []
 x, membrane_potentials_n, W, M, H, tau, P_x_, P_x, P_params_, P_params, norm_squared_errors = recursive_update(
-    x, theta_init, W_init, M_init, H_init, tau, stimuli, measurements_noisy, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params, R_y, f, n_stimuli, real_params)
+    x, theta_init, W_init, M_init, H, tau_init, stimuli, measurements_noisy, dt, P_x_, P_x, Q_x, P_params_, P_params, Q_params, R_y, f, n_stimuli, real_params)
 membrane_potentials_predicted.append(membrane_potentials_n)
 membrane_potentials_predicted = np.array(membrane_potentials_predicted)
 
@@ -234,6 +236,8 @@ print(real_params[5])
 
 print('estimated tau')
 print(tau)
+print("Final tau error")
+print(get_norm_squared_error(real_params[5], tau))
 
 if len(real_params) == 7:
     print('real theta')
