@@ -32,7 +32,7 @@ def sigmoid_derivative(x, theta, d):
     if d == 'd_theta':
         return x * sig * (1 - sig)
 
-def get_norm_squared_error(x, x_hat, regularization_term=1e-6):
+def get_norm_squared_error(x, x_hat, regularization_term=1e-4):
     """
     Calculates the normalized squared error.
 
@@ -44,7 +44,10 @@ def get_norm_squared_error(x, x_hat, regularization_term=1e-6):
     Returns:
     array: Normalized squared error.
     """
-    return get_squared_error(x, x_hat) / (x + regularization_term)**2
+    squared_error = get_squared_error(x, x_hat)
+
+    norm_sq_err = squared_error / (x + regularization_term)**2
+    return norm_sq_err
 
 def get_squared_error(x, x_hat):
     """
@@ -77,11 +80,13 @@ def f_o(x, u, params_dict, dt, function):
     array: Updated state.
     """
     if function == 'sigmoid':
-        return x + dt * (-x / params_dict['tau'] + params_dict['W'] @ sigmoid(x, params_dict['theta']) + params_dict['M'] * u)
-    if function == 'tanh':
+        x[0:2] = x[0:2] + dt * (-x[0:2] / params_dict['tau'] + params_dict['W'][0:2] @ sigmoid(x, params_dict['theta']) + params_dict['M'] * u)
+    elif function == 'tanh':
         return x + dt * (-x / params_dict['tau'] + params_dict['W'] @ np.tanh(x) + params_dict['M'] * u)
-    if function == 'linear':
-        return x + dt * (-x / params_dict['tau'] + params_dict['W'] @ x + params_dict['M'] * u)
+    elif function == 'linear':
+        # TODO: Issue.
+        x[0:2] = x[0:2] + dt * (-x[0:2] / params_dict['tau'] + params_dict['W'][0:2] @ x + params_dict['M'] * u)
+    return x
 
 def g_o(param):
     """
@@ -110,6 +115,7 @@ def jacobian_f_o_x(x, params_dict, dt, function):
     Returns:
     array: Jacobian matrix.
     """
+    dim_latent = len(x)
     if function == 'sigmoid':
         fx = sigmoid(x, params_dict['theta'])
         diag_matrix = np.diag(sigmoid_derivative(x, params_dict['theta'], 'd_x'))
@@ -117,8 +123,8 @@ def jacobian_f_o_x(x, params_dict, dt, function):
         fx = np.tanh(x)
         diag_matrix = np.diag(1 - fx ** 2)
     elif function == 'linear':
-        return (1 - dt / params_dict['tau']) * np.eye(2) + dt * params_dict['W']
-    return np.eye(len(x)) + dt * (-1 / params_dict['tau'] * np.eye(len(x)) + params_dict['W'] @ diag_matrix)
+        return (1 - dt / params_dict['tau']) * np.eye(dim_latent) + dt * params_dict['W']
+    return np.eye(dim_latent) + dt * (-1 / params_dict['tau'] * np.eye(len(x)) + params_dict['W'] @ diag_matrix)
 
 def jacobian_f_o_W(x, params_dict, dt, function):
     """
@@ -134,12 +140,14 @@ def jacobian_f_o_W(x, params_dict, dt, function):
     Returns:
     array: Jacobian matrix.
     """
+    F_W = np.zeros((6, 36))
     if function == 'sigmoid':
-        F_W = np.array([[dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta']), 0, 0],
-                        [0, 0, dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta'])]])
+        F_W[0,0:2] = [dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta'])]
+        F_W[1,6:8] = [dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta'])]
     elif function == 'linear':
-        F_W = np.array([[dt * x[0], dt * x[1], 0, 0],
-                        [0, 0, dt * x[0], dt * x[1]]])
+        F_W[0, 0:2] = dt * np.array([x[0], x[1]])
+        F_W[1, 6:8] = dt * np.array([x[0], x[1]])
+
     return F_W
 
 def jacobian_f_o_M(u, dt):
@@ -171,7 +179,7 @@ def jacobian_f_o_tau(x, params_dict, dt):
     Returns:
     array: Jacobian matrix.
     """
-    return dt * x / params_dict['tau']**2
+    return dt * x[0:2] / params_dict['tau']**2
 
 def jacobian_f_o_theta(x, params_dict, dt):
     """
@@ -190,6 +198,18 @@ def jacobian_f_o_theta(x, params_dict, dt):
     """
     derivative = np.array([sigmoid_derivative(x, params_dict['theta'], 'd_theta')])
     return dt * (params_dict['W'] @ derivative.T)
+
+def jacobian_h(x, state_dim):
+    dH = np.zeros((2,6))
+    dH[0,0] = x[state_dim]
+    dH[0,1] = x[state_dim+1]
+    dH[0,2] = x[0]
+    dH[0,3] = x[1]
+    dH[1,0] = x[state_dim+2]
+    dH[1,1] = x[state_dim+3]
+    dH[1,4] = x[0]
+    dH[1,5] = x[1]
+    return dH
 
 def jacobian_f_o(x, u, params_dict, dt, function):
     """
@@ -210,11 +230,27 @@ def jacobian_f_o(x, u, params_dict, dt, function):
     """
     F_W = jacobian_f_o_W(x, params_dict, dt, function)
     F_M = jacobian_f_o_M(u, dt)
-    F_M_array = np.array([F_M, F_M]).reshape(2, 1)
-    F_tau = jacobian_f_o_tau(x, params_dict, dt).reshape(2, 1)
+        
+    F_M_array = np.zeros((6,1))
+    F_M_array[0:2] = F_M
+    F_tau = jacobian_f_o_tau(x, params_dict, dt).reshape(2,1)
+    F_tau_array = np.zeros((6,1))
+    F_tau_array[0:2] = F_tau
     if function == 'sigmoid':
-        F_theta = jacobian_f_o_theta(x, params_dict, dt, function)
-        J_combined = np.hstack((F_W, F_M_array, F_tau, F_theta))
+        F_theta = jacobian_f_o_theta(x, params_dict, dt)
+        J_combined = np.hstack((F_W, F_M_array, F_tau_array, F_theta))
     else:
-        J_combined = np.hstack((F_W, F_M_array, F_tau))
+        J_combined = np.hstack((F_W, F_M_array, F_tau_array))
     return J_combined
+
+
+# if __name__ == "__main__":
+#     omega = 2 * np.pi * 10
+#     t = np.linspace(0, 1, 10)
+#     x = np.sin(omega * t)
+#     noise = np.random.default_rng(seed=1714).normal(loc=0, scale=1)
+#     x_hat = x + noise
+#     norm_squared_error = get_norm_squared_error(x, x_hat)
+#     test_ = ((x - x_hat) / (x + 1e-6)) ** 2
+#     diff = test_ - norm_squared_error
+#     print(f"diff {diff}")
