@@ -25,7 +25,7 @@ def main():
     H = np.array([[1, 0.7], [0.5, 0.8]])
     f  = 'linear'
 
-    #generate_synthetic_data(n_stimuli, total_time, period_square, W, H, tau, dt, theta, M, f)
+    generate_synthetic_data(n_stimuli, total_time, period_square, W, H, tau, dt, theta, M, f)
     data_file='synthetic_data.npy'
     stimuli, membrane_potentials, measurements, measurements_noisy, real_params = load_synthetic_data(data_file, f)
     model = LinearModel()
