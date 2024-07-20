@@ -1,5 +1,7 @@
 import numpy as np
-from utils import  get_norm_squared_error, f_o, jacobian_f_o_x, jacobian_f_o, jacobian_h
+import sys
+sys.path.insert(0, '../')
+from src.utils import  get_norm_squared_error, f_o, jacobian_f_o_x, jacobian_f_o, jacobian_h
 
 def load_synthetic_data(data_file, f):
     """
@@ -125,14 +127,14 @@ def update_params(params_dict, params_vec, x, u, t, dt, F_x, F_params, P_x_, P_x
     
     S = dH @ P_x_ @ dH.T + R_y 
     S_inv = np.linalg.inv(S)
-    x_hat = f_o(x, u[t-1], params_dict, dt, 'linear') - P_x_ @ dH.T @ S_inv @ (y_hat - y[t])
+    x_hat = f_o(x, u[t-1], params_dict, dt, 'sigmoid') - P_x_ @ dH.T @ S_inv @ (y_hat - y[t])
 
     I = np.eye(len(x))
     P_x_ = F_x @ P_x @ F_x.T + Q_x
 
     P_x = P_x_ @ (I + dH.T @ (R_y - dH @ P_x_ @ dH.T) @ dH @ P_x_)
    
-    params_vec = params_vec - P_params_ @ F_params.T @ (f_o(x, u[t-1], params_dict, dt, 'linear') - x_hat)
+    params_vec = params_vec - P_params_ @ F_params.T @ (f_o(x, u[t-1], params_dict, dt, 'sigmoid') - x_hat)
     
     P_params_ = P_params - P_params @ F_params.T @ (Q_x + F_params @ P_params @ F_params.T) @ F_params @ P_params
     P_params = P_params_ + Q_params

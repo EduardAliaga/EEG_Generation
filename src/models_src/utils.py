@@ -11,7 +11,6 @@ def sigmoid(x, theta):
     Returns:
     float: Sigmoid of the input.
     """
-    x_clipped = np.clip(x * theta, -100, 100)
     return 1 / (1 + np.exp(-x * theta))
 
 def sigmoid_derivative(x, theta, d):
@@ -62,195 +61,91 @@ def get_squared_error(x, x_hat):
     """
     return (x - x_hat)**2
 
-def f_o(x, u, params_dict, dt, function):
+def load_synthetic_data(data_file, f):
     """
-    Computes the function value based on the specified nonlinearity.
+    Load synthetic data from a .npy file.
 
     Parameters:
-    x (array): Current state.
-    u (array): Input.
-    theta (float): Parameter for sigmoid function.
-    W (array): Weight matrix.
-    M (float): Input scaling factor.
-    tau (float): Time constant.
-    dt (float): Time step.
-    function (str): Nonlinearity type ('sigmoid', 'tanh', 'linear').
+    data_file (str): Path to the .npy file containing the synthetic data.
 
     Returns:
-    array: Updated state.
+    dict: Dictionary containing stimuli, measurements, and parameters.
     """
-    if function == 'sigmoid':
-        x[0:2] = x[0:2] + dt * (-x[0:2] / params_dict['tau'] + params_dict['W'][0:2] @ sigmoid(x, params_dict['theta']) + params_dict['M'] * u)
-    elif function == 'tanh':
-        return x + dt * (-x / params_dict['tau'] + params_dict['W'] @ np.tanh(x) + params_dict['M'] * u)
-    elif function == 'linear':
-        # TODO: Issue.
-        x[0:2] = x[0:2] + dt * (-x[0:2] / params_dict['tau'] + params_dict['W'][0:2] @ x + params_dict['M'] * u)
-    return x
-
-def g_o(param):
-    """
-    Placeholder function for parameter update (identity function).
-
-    Parameters:
-    param (array): Parameters to be updated.
-
-    Returns:
-    array: Updated parameters (same as input).
-    """
-    return param
-
-def jacobian_f_o_x(x, params_dict, dt, function):
-    """
-    Computes the Jacobian of f_o with respect to x.
-
-    Parameters:
-    x (array): Current state.
-    theta (float): Parameter for sigmoid function.
-    W (array): Weight matrix.
-    tau (float): Time constant.
-    dt (float): Time step.
-    function (str): Nonlinearity type ('sigmoid', 'tanh', 'linear').
-
-    Returns:
-    array: Jacobian matrix.
-    """
-    dim_latent = len(x)
-    if function == 'sigmoid':
-        fx = sigmoid(x, params_dict['theta'])
-        diag_matrix = np.diag(sigmoid_derivative(x, params_dict['theta'], 'd_x'))
-    elif function == 'tanh':
-        fx = np.tanh(x)
-        diag_matrix = np.diag(1 - fx ** 2)
-    elif function == 'linear':
-        return (1 - dt / params_dict['tau']) * np.eye(dim_latent) + dt * params_dict['W']
-    return np.eye(dim_latent) + dt * (-1 / params_dict['tau'] * np.eye(len(x)) + params_dict['W'] @ diag_matrix)
-
-def jacobian_f_o_W(x, params_dict, dt, function):
-    """
-    Computes the Jacobian of f_o with respect to W.
-
-    Parameters:
-    x (array): Current state.
-    theta (float): Parameter for sigmoid function.
-    tau (float): Time constant.
-    dt (float): Time step.
-    function (str): Nonlinearity type ('sigmoid', 'linear').
-
-    Returns:
-    array: Jacobian matrix.
-    """
-    F_W = np.zeros((6, 36))
-    if function == 'sigmoid':
-        F_W[0,0:2] = [dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta'])]
-        F_W[1,6:8] = [dt * sigmoid(x[0], params_dict['theta']), dt * sigmoid(x[1], params_dict['theta'])]
-    elif function == 'linear':
-        F_W[0, 0:2] = dt * np.array([x[0], x[1]])
-        F_W[1, 6:8] = dt * np.array([x[0], x[1]])
-
-    return F_W
-
-def jacobian_f_o_M(u, dt):
-    """
-    Computes the Jacobian of f_o with respect to M.
-
-    Parameters:
-    x (array): Current state.
-    theta (float): Parameter for sigmoid function.
-    u (array): Input.
-    dt (float): Time step.
-
-    Returns:
-    array: Jacobian matrix.
-    """
-    return dt * u
-
-def jacobian_f_o_tau(x, params_dict, dt):
-    """
-    Computes the Jacobian of f_o with respect to tau.
-
-    Parameters:
-    x (array): Current state.
-    theta (float): Parameter for sigmoid function.
-    W (array): Weight matrix.
-    tau (float): Time constant.
-    dt (float): Time step.
-
-    Returns:
-    array: Jacobian matrix.
-    """
-    return dt * x[0:2] / params_dict['tau']**2
-
-def jacobian_f_o_theta(x, params_dict, dt):
-    """
-    Computes the Jacobian of f_o with respect to theta.
-
-    Parameters:
-    x (array): Current state.
-    theta (float): Parameter for sigmoid function.
-    W (array): Weight matrix.
-    tau (float): Time constant.
-    dt (float): Time step.
-    function (str): Nonlinearity type ('sigmoid').
-
-    Returns:
-    array: Jacobian matrix.
-    """
-    derivative = np.array([sigmoid_derivative(x, params_dict['theta'], 'd_theta')])
-    return dt * (params_dict['W'] @ derivative.T)
-
-def jacobian_h(x, state_dim):
-    dH = np.zeros((2,6))
-    dH[0,0] = x[state_dim]
-    dH[0,1] = x[state_dim+1]
-    dH[0,2] = x[0]
-    dH[0,3] = x[1]
-    dH[1,0] = x[state_dim+2]
-    dH[1,1] = x[state_dim+3]
-    dH[1,4] = x[0]
-    dH[1,5] = x[1]
-    return dH
-
-def jacobian_f_o(x, u, params_dict, dt, function):
-    """
-    Computes the combined Jacobian of f_o with respect to all parameters.
-
-    Parameters:
-    x (array): Current state.
-    u (array): Input.
-    theta (float): Parameter for sigmoid function.
-    W (array): Weight matrix.
-    M (float): Input scaling factor.
-    tau (float): Time constant.
-    dt (float): Time step.
-    function (str): Nonlinearity type ('sigmoid', 'tanh', 'linear').
-
-    Returns:
-    array: Combined Jacobian matrix.
-    """
-    F_W = jacobian_f_o_W(x, params_dict, dt, function)
-    F_M = jacobian_f_o_M(u, dt)
+    data = np.load(data_file, allow_pickle=True).item()
+    stimuli = data['stimuli']
+    membrane_potentials = data['membrane_potentials']
+    measurements = data['measurements']
+    measurements_noisy = data['measurements_noisy']
+    real_params = {
+        'W': data['params']['W'],
+        'M': data['params']['M'],
+        'tau': data['params']['tau'],
+        'H' : data['params']['H']
         
-    F_M_array = np.zeros((6,1))
-    F_M_array[0:2] = F_M
-    F_tau = jacobian_f_o_tau(x, params_dict, dt).reshape(2,1)
-    F_tau_array = np.zeros((6,1))
-    F_tau_array[0:2] = F_tau
-    if function == 'sigmoid':
-        F_theta = jacobian_f_o_theta(x, params_dict, dt)
-        J_combined = np.hstack((F_W, F_M_array, F_tau_array, F_theta))
-    else:
-        J_combined = np.hstack((F_W, F_M_array, F_tau_array))
-    return J_combined
+    }
+    if f == 'sigmoid':
+        real_params['theta'] = data['params']['theta']
+    return stimuli, membrane_potentials, measurements, measurements_noisy, real_params
 
 
-# if __name__ == "__main__":
-#     omega = 2 * np.pi * 10
-#     t = np.linspace(0, 1, 10)
-#     x = np.sin(omega * t)
-#     noise = np.random.default_rng(seed=1714).normal(loc=0, scale=1)
-#     x_hat = x + noise
-#     norm_squared_error = get_norm_squared_error(x, x_hat)
-#     test_ = ((x - x_hat) / (x + 1e-6)) ** 2
-#     diff = test_ - norm_squared_error
-#     print(f"diff {diff}")
+def params_to_vector(params_dict):
+    W = params_dict['W'].flatten()
+    if 'theta' in params_dict:
+        return np.hstack((W, params_dict['M'], params_dict['tau'], params_dict['theta']))
+    return np.hstack((W, params_dict['M'], params_dict['tau']))
+
+def vector_to_params(aug_state_dim, vector):
+    W = vector[:aug_state_dim**2].reshape((aug_state_dim, aug_state_dim))
+    M = vector[aug_state_dim**2]
+    tau = vector[aug_state_dim**2 + 1]
+    params = {'W': W, 'M': M, 'tau': tau}
+    if len(vector) > aug_state_dim**2 + 2:
+        params['theta'] = vector[aug_state_dim**2 + 2]
+    return params
+
+def get_params_norm_squared_error(norm_squared_errors, params_dict, real_params):
+        
+    for key in params_dict:
+        norm_squared_errors[key] = []
+        if key == 'W':
+            norm_squared_errors['W'] = {f'W_{i}_{j}': [] for i in range(params_dict['W'].shape[0]) for j in range(params_dict['W'].shape[1])}
+            for i in range(params_dict['W'].shape[0]):
+                for j in range(params_dict['W'].shape[1]):
+                    norm_error = get_norm_squared_error(real_params['W'][i, j], params_dict['W'][i, j])
+                    norm_squared_errors['W'][f'W_{i}_{j}'].append(norm_error)
+        else:
+            norm_error = get_norm_squared_error(real_params[key], params_dict[key])
+            norm_squared_errors[key].append(norm_error)
+    return norm_squared_errors
+
+def get_predictions_norm_squared_error(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, state_dim):
+    nsqe_membrane_potentials = get_norm_squared_error(membrane_potentials, membrane_potentials_predicted)
+    # Look how mesaurements prediced is computed, should we keep using that or change it for the predictions from the beginning?
+    y, H = compute_measurements_with_known_H(state_dim, membrane_potentials_predicted)
+    nsqe_measurements = get_norm_squared_error(measurements, y)
+    return nsqe_membrane_potentials, nsqe_measurements
+
+def get_norm_squared_errors(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, params_dict, real_params, state_dim):
+    norm_squared_errors = {}
+    norm_squared_errors = get_params_norm_squared_error(norm_squared_errors, params_dict, real_params)
+    norm_squared_errors['membrane_potentials'], norm_squared_errors['measurements'] = get_predictions_norm_squared_error(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, state_dim)
+    return norm_squared_errors
+
+
+def compute_measurements_with_known_H(state_dim,membrane_potentials_predicted):
+    y = []
+    x = membrane_potentials_predicted[-1]
+    H = x[state_dim-1:-1].reshape((state_dim, state_dim))
+    for t in range(0,len(membrane_potentials_predicted)):
+        y.append(H @ membrane_potentials_predicted[t][:2])
+    y = np.array(y)
+    return y, H
+
+def save_results(params_dict, membrane_potentials_predicted, norm_squared_errors):
+    save_dict = {}
+    for key in params_dict:
+        save_dict[key] = params_dict[key]
+    save_dict['membrane_potentials_predicted'] = membrane_potentials_predicted
+    save_dict['norm_squared_errors'] = norm_squared_errors
+    np.save('estimated_params.npy', save_dict)
+
