@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from statsmodels.distributions.empirical_distribution import ECDF
 
 def plot_stimulus(stimuli):
     """
@@ -119,7 +120,6 @@ def plot_all(synthetic_data_file='synthetic_data.npy', estimated_params_file='es
     estimated_params = np.load(estimated_params_file, allow_pickle=True).item()
     membrane_potentials_predicted = estimated_params['membrane_potentials_predicted']
     norm_squared_errors = estimated_params['norm_squared_errors']
-    print(norm_squared_errors['membrane_potentials'].T[2:6].shape)
     
     # Plot data
     plot_stimulus(stimuli)
@@ -139,17 +139,24 @@ def plot_all(synthetic_data_file='synthetic_data.npy', estimated_params_file='es
     compare_estimates(y, measurements, label_1 = "measurement 1", label_2 = "measurement 2", figname="Predictions vs Synthetic Measurements")
     compare_estimates(membrane_potentials_predicted, membrane_potentials, label_1 = "membrane potential 1", label_2 = "membrane potential 2", figname="Predicted vs Synthetic Membrane Potentials")
 
-    plot_matrix_norm_squared_errors(norm_squared_errors['W'], 'W')
+    """plot_matrix_norm_squared_errors(norm_squared_errors['W'], 'W')
     plot_norm_squared_error_m(norm_squared_errors)
     plot_norm_squared_error_tau(norm_squared_errors)
-    plot_norm_squared_error_theta(norm_squared_errors)
+    plot_norm_squared_error_theta(norm_squared_errors)"""
 
     plot_membrane_potential_norm_squared_error(norm_squared_errors['membrane_potentials'].T, figname="Norm Squared Error Membrane Potential")
     #plot_norm_squared_error(norm_squared_errors['membrane_potentials'][:,2:6], figname="Norm Squared Error h_components")
     plot_matrix_norm_squared_errors(norm_squared_errors['membrane_potentials'].T[2:6], 'H')
     #plot_h_parameter_error(norm_squared_errors, figname="Norm Squared Error h components")
-
-    plot_measurements_norm_squared_error(norm_squared_errors['measurements'].T, figname="Norm Squared Error measurements")
+    #measurements_ecdf = ECDF(norm_squared_errors['measurements'].T[0].ravel())
+    lognse = np.log(norm_squared_errors['measurements'].T[0])
+    measurements_ecdf = ECDF(lognse)
+    meas = np.linspace(lognse.min(),lognse.max(),1000)
+    plt.plot(meas,measurements_ecdf(meas),'r-')
+    plt.show()
+    print(norm_squared_errors['measurements'].T[0].shape)
+    #plt.plot(measurements_ecdf)
+    #plot_measurements_norm_squared_error(norm_squared_errors['measurements'].T, figname="Norm Squared Error measurements")
 
     # Show all plots
     plt.show()
