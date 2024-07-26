@@ -73,7 +73,7 @@ def load_synthetic_data(data_file, f):
     """
     data = np.load(data_file, allow_pickle=True).item()
     stimuli = data['stimuli']
-    membrane_potentials = data['membrane_potentials']
+    states = data['states']
     measurements = data['measurements']
     measurements_noisy = data['measurements_noisy']
     real_params = {
@@ -85,7 +85,7 @@ def load_synthetic_data(data_file, f):
     }
     if f == 'sigmoid':
         real_params['theta'] = data['params']['theta']
-    return stimuli, membrane_potentials, measurements, measurements_noisy, real_params
+    return stimuli, states, measurements, measurements_noisy, real_params
 
 
 def params_to_vector(params_dict):
@@ -118,34 +118,47 @@ def get_params_norm_squared_error(norm_squared_errors, params_dict, real_params)
             norm_squared_errors[key].append(norm_error)
     return norm_squared_errors
 
-def get_predictions_norm_squared_error(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, state_dim):
-    nsqe_membrane_potentials = get_norm_squared_error(membrane_potentials, membrane_potentials_predicted)
+def get_predictions_norm_squared_error(states_predicted, measurements_predicted, states, measurements, state_dim, model):
+    nsqe_states = get_norm_squared_error(states, states_predicted)
     # Look how mesaurements prediced is computed, should we keep using that or change it for the predictions from the beginning?
-    y, H = compute_measurements_with_known_H(state_dim, membrane_potentials_predicted)
-    nsqe_measurements = get_norm_squared_error(measurements, y)
-    return nsqe_membrane_potentials, nsqe_measurements
+    if model in ['sigmoid', 'linear']:
+        y, H = compute_measurements_with_known_H_linear_and_sigmoid_models(state_dim, states_predicted)
 
-def get_norm_squared_errors(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, params_dict, real_params, state_dim):
+    elif model == 'dcm':
+        y, H = compute_measurements_with_known_H_dcm_model(state_dim, states_predicted)
+
+    nsqe_measurements = get_norm_squared_error(measurements, y)
+    return nsqe_states, nsqe_measurements
+
+def get_norm_squared_errors(states_predicted, measurements_predicted, states, measurements, params_dict, real_params, state_dim):
     norm_squared_errors = {}
     norm_squared_errors = get_params_norm_squared_error(norm_squared_errors, params_dict, real_params)
-    norm_squared_errors['membrane_potentials'], norm_squared_errors['measurements'] = get_predictions_norm_squared_error(membrane_potentials_predicted, measurements_predicted, membrane_potentials, measurements, state_dim)
+    norm_squared_errors['states'], norm_squared_errors['measurements'] = get_predictions_norm_squared_error(states_predicted, measurements_predicted, states, measurements, state_dim)
     return norm_squared_errors
 
 
-def compute_measurements_with_known_H(state_dim,membrane_potentials_predicted):
+def compute_measurements_with_known_H_linear_and_sigmoid_models(state_dim,states_predicted):
     y = []
-    x = membrane_potentials_predicted[-1]
+    x = states_predicted[-1]
     H = x[state_dim-1:-1].reshape((state_dim, state_dim))
-    for t in range(0,len(membrane_potentials_predicted)):
-        y.append(H @ membrane_potentials_predicted[t][:2])
+    for t in range(0,len(states_predicted)):
+        y.append(H @ states_predicted[t][:2])
     y = np.array(y)
     return y, H
 
-def save_results(params_dict, membrane_potentials_predicted, norm_squared_errors):
+def compute_measurements_with_known_H_dcm_model(state_dim, states_predicted):
+    H = states_predicted[-1, state_dim:-1, :]
+    y = []
+    for t in range(0,len(states_predicted)):
+        x0 = states_predicted[t, 2, :] - states_predicted[t, 3, :]
+        y.append(H @ x0)
+    return y, H
+
+def save_results(params_dict, states_predicted, norm_squared_errors):
     save_dict = {}
     for key in params_dict:
         save_dict[key] = params_dict[key]
-    save_dict['membrane_potentials_predicted'] = membrane_potentials_predicted
+    save_dict['states_predicted'] = states_predicted
     save_dict['norm_squared_errors'] = norm_squared_errors
     np.save('estimated_params.npy', save_dict)
 
