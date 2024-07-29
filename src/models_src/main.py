@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 def main():
     total_time = 30
-    dt = 1e-3
+    dt = 1e-2
     n_time_points = int(total_time / dt)
     period_square = 0.3
     sources = 2
@@ -24,7 +24,7 @@ def main():
         'sources' : 2,
         'H': np.array([[1, 0.7], [0.5, 0.8]]),
         'dt': dt,
-        'theta': 1.0,
+        'theta': 0.56,
         'H_e': 0.1,
         'tau_e': 10.0,
         'H_i': 16.0,
@@ -33,7 +33,6 @@ def main():
         'gamma_2': 4/5,
         'gamma_3': 1/4,
         'gamma_4': 1/4,  # gamma_3 value
-        'theta': 0.56,
         'sources': 2,
         'C_f': np.random.rand(sources, sources),
         'C_l': np.random.rand(sources, sources), 
@@ -76,10 +75,14 @@ def main():
     #save_results(model.params_dict, states_predicted, norm_squared_errors)
 
     #estimate_parameters_and_states(f)
-    for i in range(0,2):
-        plt.figure()
-        plt.plot(measurements[:,i])
-        plt.plot(measurements_predicted[:,i])
+
+    plt.figure()
+    plt.plot(states_predicted[:,0,:])
+    plt.plot(states[0,0])
+
+    plt.figure()
+    plt.plot(measurements_predicted)
+    plt.plot(measurements)
     plt.show()
 
     # for i in range(0,9):

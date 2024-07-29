@@ -1,163 +1,172 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import numpy as np
+import jax
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 
-# Define the model
-class Model(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
-        super(Model, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
-        self.theta = nn.Parameter(torch.randn(2, 2))  # Adjusted to match the shape for multiplication
-        self.H_e = nn.Parameter(torch.randn(1))
-        self.tau_e = nn.Parameter(torch.randn(1))
-        self.H_i = nn.Parameter(torch.randn(1))
-        self.tau_i = nn.Parameter(torch.randn(1))
-        self.lambda_1 = nn.Parameter(torch.randn(1))
-        self.lambda_2 = nn.Parameter(torch.randn(1))
-        self.lambda_3 = nn.Parameter(torch.randn(1))
-        self.lambda_4 = nn.Parameter(torch.randn(1))
-        self.C_f = nn.Parameter(torch.randn(2, 2))
-        self.C_l = nn.Parameter(torch.randn(2, 2))
-        self.C_u = nn.Parameter(torch.randn(2, 2))
-        self.C_b = nn.Parameter(torch.randn(2, 2))
-        self.linear = nn.Linear(hidden_dim, output_dim)
+def f_x0(x, dt):
+     return x[0] + dt * (x[5] - x[6])
 
-    def forward(self, x, u, dt):
-        def sigmoid(x):
-            return 1 / (1 + torch.exp(-x))
+def f_x1(x, dt):
+     return x[1] + dt * x[4]
 
-        batch_size, seq_len, _, _ = x.size()
-        outputs = []
-        h = None  # hidden state for LSTM
+def f_x2(x, dt):
+     return x[2] + dt * x[5]
 
-        for t in range(seq_len):
-            xt = x[:, t, :, :]
-            ut = u[:, t, :, :]
+def f_x3(x, dt):
+     return x[3] + dt * x[6]
 
-            xt_theta = torch.matmul(xt[:, 0, :], self.theta)  # Apply theta to the appropriate dimension
-            ut_theta = torch.matmul(ut.squeeze(-1), self.theta)  # Apply theta to the appropriate dimension and keep the dimension
+def f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u):
+     return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(2)) @ (jax.nn.sigmoid(x[0] * theta)-0.5) + C_u @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
 
-            x0 = xt[:, 0, :] + dt * (xt[:, 5, :] - xt[:, 6, :])
-            x1 = xt[:, 1, :] + dt * xt[:, 4, :]
-            x2 = xt[:, 2, :] + dt * xt[:, 5, :]
-            x3 = xt[:, 3, :] + dt * xt[:, 6, :]
-            x4 = xt[:, 4, :].T + dt * (self.H_e / self.tau_e * (torch.matmul(self.C_f + self.C_l + self.lambda_1 * torch.eye(2), sigmoid(xt_theta).T) + torch.matmul(self.C_u, ut_theta.T)) - 2 * xt[:, 4, :].T / self.tau_e - xt[:, 1, :].T / self.tau_e ** 2)
-            x5 = xt[:, 5, :].T + dt * (self.H_e / self.tau_e * (torch.matmul(self.C_b + self.C_l, sigmoid(xt_theta).T) + self.lambda_2 * sigmoid(xt[:, 3, :]).T) - 2 * xt[:, 5, :].T / self.tau_e - xt[:, 2, :].T / self.tau_e ** 2)
-            x6 = xt[:, 6, :].T + dt * (self.H_i / self.tau_i * self.lambda_4 * sigmoid(xt[:, 7, :]).T - 2 * xt[:, 6, :].T / self.tau_i - xt[:, 3, :].T / self.tau_i ** 2)
-            x7 = xt[:, 7, :] + dt * xt[:, 8, :]
-            x8 = xt[:, 8, :].T + dt * (self.H_e / self.tau_e * (torch.matmul(self.C_b + self.C_l + self.lambda_3 * torch.eye(2), sigmoid(xt_theta).T)) - 2 * xt[:, 8, :].T / self.tau_e - xt[:, 7, :].T / self.tau_e ** 2)
-            x_h_0 = xt[:, 9, :]
-            x_h_1 = xt[:, 10, :]
+def f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l):
+     return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (jax.nn.sigmoid(x[0] * theta) - 0.5) + gamma_2 * (jax.nn.sigmoid(x[3] * theta) - 0.5)) * 2 * x[5]/tau_e - x[2]/tau_e**2)
 
-            output = torch.stack([x0, x1, x2, x3, x4.T, x5.T, x6.T, x7, x8.T, x_h_0, x_h_1], dim=1)
-            output = output.view(output.size(0), -1)  # Flatten the tensor to fit the linear layer
-            lstm_out, h = self.lstm(output.unsqueeze(1), h)  # Unsqueeze to add the sequence dimension
-            lstm_out = lstm_out.squeeze(1)  # Remove the sequence dimension
-            output = self.linear(lstm_out)
-            output = output.view(output.size(0), 2, 1)  # Reshape back to (2, 1)
-            outputs.append(output)
+def f_x6(x, dt, theta, H_i, tau_i, gamma_4):
+     return x[6] + dt * (H_i/tau_i * gamma_4 * (jax.nn.sigmoid(x[7] * theta) - 0.5) - 2 * x[6]/tau_i - x[3]/tau_i**2)
 
-        outputs = torch.stack(outputs, dim=1)  # Stack along the time dimension
-        return outputs
+def f_x7(x, dt):
+     return x[7] + dt * x[8]
 
-# Load your data
-data_file = 'synthetic_data.npy'
+def f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l):
+    return x[8] + dt * (H_e/tau_e * ((C_b + C_l + gamma_3 * np.eye(len(x[0]))) @ (jax.nn.sigmoid(x[0] * theta) - 0.5)) - 2 * x[8]/tau_e - x[7]/tau_e**2)
+
+def f_x_h_0(x):
+     return x[9]
+
+def f_x_h_1(x):
+     return x[10]
+
+def f_o(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b):
+    return jax.numpy.array([
+        f_x0(x, dt),
+        f_x1(x, dt),
+        f_x2(x, dt),
+        f_x3(x, dt),
+        f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u),
+        f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l),
+        f_x6(x, dt, theta, H_i, tau_i, gamma_4),
+        f_x7(x, dt),
+        f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l),
+        f_x_h_0(x),
+        f_x_h_1(x)
+    ])
+
+def jacobian_f_o(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b):
+        F_theta = np.array(jax.jit(jax.jacobian(f_o, argnums=3))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_H_e = np.array(jax.jit(jax.jacobian(f_o, argnums=4))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_tau_e = np.array(jax.jit(jax.jacobian(f_o, argnums=5))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_H_i = np.array(jax.jit(jax.jacobian(f_o, argnums=6))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_tau_i = np.array(jax.jit(jax.jacobian(f_o, argnums=7))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_gamma_1 = np.array(jax.jit(jax.jacobian(f_o, argnums=8))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_gamma_2 = np.array(jax.jit(jax.jacobian(f_o, argnums=9))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_gamma_3 = np.array(jax.jit(jax.jacobian(f_o, argnums=10))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_gamma_4 = np.array(jax.jit(jax.jacobian(f_o, argnums=11))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 1)
+        F_C_f = np.array(jax.jit(jax.jacobian(f_o, argnums=12))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 4)
+        F_C_l = np.array(jax.jit(jax.jacobian(f_o, argnums=13))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 4)
+        F_C_u = np.array(jax.jit(jax.jacobian(f_o, argnums=14))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 2)
+        F_C_b = np.array(jax.jit(jax.jacobian(f_o, argnums=15))(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)).reshape(22, 4)
+        F_params = np.hstack([F_theta, F_H_e, F_tau_e, F_H_i, F_tau_i, F_gamma_1, F_gamma_2, F_gamma_3, F_gamma_4, F_C_f, F_C_l, F_C_u, F_C_b])
+        return F_params
+
+def measurement_function(x):
+    return x[9:11] @ (x[2] - x[3])
+
+data_file ='synthetic_data.npy'
+data_file_2 ='states_predicted.npy'
+data_file_3 = 'measurements_predicted.npy' 
+#stimuli, states, measurements, measurements_noisy, real_params = load_synthetic_data(data_file, f)
 data = np.load(data_file, allow_pickle=True).item()
+data_2 = np.load(data_file_2, allow_pickle = True)
+data_3 = np.load(data_file_3, allow_pickle = True)
+
 stimuli = data['stimuli']
-membrane_potentials = data['membrane_potentials']
+states = data['states']
+states = np.array(states)
+print(stimuli.shape)
+measurements = data['measurements']
 measurements_noisy = data['measurements_noisy']
 
-# Reshape the arrays
-membrane_potentials = np.array(membrane_potentials).reshape(3000, 11, 2)
-measurements_noisy = measurements_noisy.reshape(3000, 2, 1)
-stimuli = stimuli.reshape(3000, 2, 1)
+plt.figure()
+plt.plot(data_2[:,0,0])
+plt.plot(states[0,0,:])
 
-# Convert to PyTorch tensors
-membrane_potentials = torch.from_numpy(membrane_potentials).float().unsqueeze(0)  # Add batch dimension
-measurements_noisy = torch.from_numpy(measurements_noisy).float().unsqueeze(0)  # Add batch dimension
-stimuli = torch.from_numpy(stimuli).float().unsqueeze(0)  # Add batch dimension
-
-# Split the data into training and testing sets
-train_idx = int(0.8 * membrane_potentials.shape[1])
-x_train, x_test = membrane_potentials[:, :train_idx, :, :], membrane_potentials[:, train_idx:, :, :]
-y_train, y_test = measurements_noisy[:, :train_idx, :, :], measurements_noisy[:, train_idx:, :, :]
-u_train, u_test = stimuli[:, :train_idx, :, :], stimuli[:, train_idx:, :, :]
-
-# Create the model
-model = Model(input_dim=22, hidden_dim=50, output_dim=2)  # Changed input_dim to match the concatenated size
-dt = 0.01
-
-# Training parameters
-learning_rate = 0.001
-num_epochs = 20
-
-# Loss function and optimizer
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-# Training loop
-train_losses = []
-test_losses = []
-
-for epoch in range(num_epochs):
-    model.train()
-    optimizer.zero_grad()
-    outputs = model(x_train, u_train, dt)
-    loss = criterion(outputs, y_train)
-    loss.backward()
-    optimizer.step()
-
-    train_losses.append(loss.item())
-
-    model.eval()
-    with torch.no_grad():
-        test_outputs = model(x_test, u_test, dt)
-        test_loss = criterion(test_outputs, y_test)
-        test_losses.append(test_loss.item())
-
-    if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {loss.item():.4f}, Test Loss: {test_loss.item():.4f}')
-
-# Plotting the results
-plt.figure(figsize=(10, 5))
-plt.plot(train_losses, label='Train Loss')
-plt.plot(test_losses, label='Test Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.title('Training and Testing Loss')
+plt.figure()
+plt.plot(data_3)
+plt.plot(measurements)
 plt.show()
 
-model.eval()
-with torch.no_grad():
-    predicted_train = model(x_train, u_train, dt).squeeze().cpu().numpy()
-    predicted_test = model(x_test, u_test, dt).squeeze().cpu().numpy()
-    y_train = y_train.squeeze().cpu().numpy()
-    y_test = y_test.squeeze().cpu().numpy()
+aug_state_dim = 11
+aug_state_dim_flattened = 22
+sources = 2
+state_dim = 9
+num_time_points = len(stimuli)
+x = np.zeros((11,2))
+H = np.eye(sources)
+x[state_dim:state_dim + sources] = H
+dt = 1e-2
+theta = 0.3
+H_e = 0.1
+tau_e = 10.0
+H_i = 8.0
+tau_i= 5.0
+gamma_1= 1.0
+gamma_2= 1/6
+gamma_3= 4/5
+gamma_4= 2/5  # gamma_3 value
+sources= 2
+C_f= np.random.rand(sources, sources)
+C_l= np.random.rand(sources, sources) 
+C_u= np.random.rand(sources)
+C_b= np.random.rand(sources, sources) 
 
-plt.figure(figsize=(12, 6))
+n_params = 23
+Q_x = np.eye(aug_state_dim_flattened) * 1e-4
+R_y = np.eye(sources) * 1e-4
+P_x_ = np.eye(aug_state_dim_flattened) * 1e-4
+P_x = np.eye(aug_state_dim_flattened) * 1e-4
+P_params_ = np.eye(n_params) * 1e-4
+P_params = np.eye(n_params) * 1e-4
+Q_params = np.eye(n_params) * 1e-4
+params_vec = np.hstack((theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f.flatten(), C_l.flatten(), C_u.flatten(), C_b.flatten()))
 
-# Plot for training data
-plt.subplot(1, 2, 1)
-plt.plot(y_train.flatten(), label='Ground Truth')
-plt.plot(predicted_train.flatten(), label='Predicted')
-plt.title('Training Data')
-plt.xlabel('Time Step')
-plt.ylabel('Value')
-plt.legend()
+#states_predicted = np.zeros((num_time_points, aug_state_dim))
+states_predicted = np.zeros((num_time_points, aug_state_dim, sources))
+#measurements_predicted = np.zeros((num_time_points, state_dim))
+measurements_predicted = np.zeros((num_time_points, sources))
+# Set initial state
+states_predicted[0] = x
 
-# Plot for testing data
-plt.subplot(1, 2, 2)
-plt.plot(y_test.flatten(), label='Ground Truth')
-plt.plot(predicted_test.flatten(), label='Predicted')
-plt.title('Testing Data')
-plt.xlabel('Time Step')
-plt.ylabel('Value')
-plt.legend()
+for t in range(1, num_time_points):
+    # TODO: define the jacobians as  also 
+    F_x = np.array(jax.jit(jax.jacobian(f_o, argnums = (0)))(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec[17:19].reshape(2), params_vec[19:23].reshape(2,2))).reshape(22,22)
+    F_params = jacobian_f_o(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec[17:19].reshape(2), params_vec[19:23].reshape(2,2))
+    print(t)
+    #H = .x[.state_dim:.aug_state_dim].reshape((.state_dim, .state_dim))
+    H = x[state_dim:state_dim + sources].reshape(2,2)
+    y_hat = H @ x[0]
+    dH = np.array(jax.jit(jax.jacobian(measurement_function, argnums = (0)))(x)).reshape(2,22)
 
-plt.tight_layout()
-plt.show()
+    S = dH @ P_x_ @ dH.T + R_y 
+    S_inv = np.linalg.inv(S)
+    x_hat = f_o(x, stimuli[t-1], dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b).flatten()
+    x = x_hat - P_x_ @ dH.T @ S_inv @ (y_hat - measurements_noisy[t])
+
+    I = np.eye(aug_state_dim_flattened)
+    P_x_ = F_x @ P_x @ F_x.T + Q_x
+    P_x = P_x_ @ (I + dH.T @ (R_y - dH @ P_x_ @ dH.T) @ dH @ P_x_)
+
+    params_vec = params_vec - P_params_ @ F_params.T @ (x_hat - x)
+    
+    P_params_ = P_params - P_params @ F_params.T @ (Q_x + F_params @ P_params @ F_params.T) @ F_params @ P_params
+    P_params = P_params_ + Q_params
+
+    Q_x = dt * Q_x
+    Q_params = dt * Q_params
+    x = x.reshape(aug_state_dim, sources)
+
+    # Assign predicted values
+    states_predicted[t] = x
+    measurements_predicted[t] = y_hat
+
+print(states_predicted.shape)
+np.save("states_predicted.npy", states_predicted)
+np.save("measurements_predicted.npy", measurements_predicted)
