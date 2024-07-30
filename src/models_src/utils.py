@@ -88,20 +88,26 @@ def load_synthetic_data(data_file, f):
     return stimuli, states, measurements, measurements_noisy, real_params
 
 
-def params_to_vector(params_dict):
-    W = params_dict['W'].flatten()
-    if 'theta' in params_dict:
-        return np.hstack((W, params_dict['M'], params_dict['tau'], params_dict['theta']))
-    return np.hstack((W, params_dict['M'], params_dict['tau']))
-
-def vector_to_params(aug_state_dim, vector):
-    W = vector[:aug_state_dim**2].reshape((aug_state_dim, aug_state_dim))
-    M = vector[aug_state_dim**2]
-    tau = vector[aug_state_dim**2 + 1]
-    params = {'W': W, 'M': M, 'tau': tau}
-    if len(vector) > aug_state_dim**2 + 2:
-        params['theta'] = vector[aug_state_dim**2 + 2]
-    return params
+def params_dict_to_vector(params_dict):
+    params_vec = []
+    for key, value in params_dict.items():
+        if isinstance(value, np.ndarray):
+            params_vec.extend(value.flatten())
+        else:
+            params_vec.append(value)
+    return np.array(params_vec)
+def update_params_dic(params_dict, params_vec):
+    i = 0
+    for key, value in params_dict.items():
+        if isinstance(value, np.ndarray):
+            shape = value.shape
+            size = value.size
+            params_dict[key] = params_vec[i:i+size].reshape(shape)
+            i += size
+        else:
+            params_dict[key] = params_vec[i]
+            i += 1
+    return params_dict
 
 def get_params_norm_squared_error(norm_squared_errors, params_dict, real_params):
         
