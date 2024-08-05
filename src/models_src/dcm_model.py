@@ -1,4 +1,4 @@
-from src.models_src.neural_model import *
+from neural_model import *
 import matplotlib.pyplot as plt
 import state_functions_dcm as sf_dcm
 
@@ -6,8 +6,8 @@ def measurement_function(x):
     return x[9:11] @ (x[2] - x[3])
 
 class DCM(NeuralModel):
-    def __init__(self, state_dim, aug_state_dim, n_iterations, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params):
-        super().__init__(state_dim, aug_state_dim, n_iterations, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
+    def __init__(self, state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params):
+        super().__init__(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
         self.jac_f_dx = jax.jit(jax.jacobian(sf_dcm.f_o, argnums = (0)))
         self.F_x = np.zeros((self.aug_state_dim_flattened, self.aug_state_dim_flattened))
         self.jac_measurement_f_dH = jax.jit(jax.jacobian(measurement_function,argnums=(0)))

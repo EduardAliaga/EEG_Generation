@@ -12,13 +12,13 @@ def plot_stimulus(stimuli):
     plt.xlabel("Samples")
     plt.legend()
 
-def plot_state(membrane_potentials, label_1 = "membrane potential 1", label_2 = "membrane potential 2", linestyle="-", figname="Membrane Potentials"):
+def plot_state(states, label_1 = "membrane potential 1", label_2 = "membrane potential 2", linestyle="-", figname="Membrane Potentials"):
     """
     Plot state evolution.
     """
     plt.figure(figname)
-    plt.plot(membrane_potentials[:, 0], c='#1f77b4', label=label_1, linestyle=linestyle)
-    plt.plot(membrane_potentials[:, 1], c='orange', label=label_2, linestyle=linestyle)
+    plt.plot(states[:, 0], c='#1f77b4', label=label_1, linestyle=linestyle)
+    plt.plot(states[:, 1], c='orange', label=label_2, linestyle=linestyle)
     plt.title(figname)
     plt.xlabel("Samples")
     plt.ylabel("Membrane Potential (V)")
@@ -99,7 +99,7 @@ def plot_measurements_norm_squared_error(norm_squared_error, figname="Norm Squar
     plt.ylabel("Norm Squared Error")
     plt.legend()
 
-def plot_membrane_potential_norm_squared_error(norm_squared_error, figname="Norm Squared Error"):
+def plot_state_norm_squared_error(norm_squared_error, figname="Norm Squared Error"):
     plt.figure(figname)
     plt.semilogy(norm_squared_error[0], label = figname + " for membrane potential 1")
     plt.semilogy(norm_squared_error[1], label = figname + " for membrane potential 2")
@@ -112,23 +112,23 @@ def plot_all(synthetic_data_file='synthetic_data.npy', estimated_params_file='es
     # Load synthetic data
     synthetic_data = np.load(synthetic_data_file, allow_pickle=True).item()
     stimuli = synthetic_data['stimuli']
-    membrane_potentials = synthetic_data['membrane_potentials']
+    states = synthetic_data['states']
     measurements = synthetic_data['measurements']
     measurements_noisy = synthetic_data['measurements_noisy']
 
     # Load estimated parameters and states
     estimated_params = np.load(estimated_params_file, allow_pickle=True).item()
-    membrane_potentials_predicted = estimated_params['membrane_potentials_predicted']
+    states_predicted = estimated_params['states_predicted']
     norm_squared_errors = estimated_params['norm_squared_errors']
     
     # Plot data
     plot_stimulus(stimuli)
-    plot_state(membrane_potentials, figname="Synthetic Membrane Potentials", label_1 = "membrane potential 1", label_2 = "membrane potential 2")
-    plot_state(membrane_potentials_predicted, figname="Predicted Membrane Potentials", label_1 = "membrane potential 1", label_2 = "membrane potential 2")
+    plot_state(states, figname="Synthetic Membrane Potentials", label_1 = "membrane potential 1", label_2 = "membrane potential 2")
+    plot_state(states_predicted, figname="Predicted Membrane Potentials", label_1 = "membrane potential 1", label_2 = "membrane potential 2")
 
     y = []
     for t in range(len(stimuli)):
-        y.append(np.dot(np.array([[1, 0.7], [0.5, 0.8]]), membrane_potentials_predicted[t][0:2]))
+        y.append(np.dot(np.array([[1, 0.7], [0.5, 0.8]]), states_predicted[t][0:2]))
     y = np.array(y)
     #plot_measurement(y)
 
@@ -137,16 +137,16 @@ def plot_all(synthetic_data_file='synthetic_data.npy', estimated_params_file='es
 
 
     compare_estimates(y, measurements, label_1 = "measurement 1", label_2 = "measurement 2", figname="Predictions vs Synthetic Measurements")
-    compare_estimates(membrane_potentials_predicted, membrane_potentials, label_1 = "membrane potential 1", label_2 = "membrane potential 2", figname="Predicted vs Synthetic Membrane Potentials")
+    compare_estimates(states_predicted, states, label_1 = "membrane potential 1", label_2 = "membrane potential 2", figname="Predicted vs Synthetic Membrane Potentials")
 
     """plot_matrix_norm_squared_errors(norm_squared_errors['W'], 'W')
     plot_norm_squared_error_m(norm_squared_errors)
     plot_norm_squared_error_tau(norm_squared_errors)
     plot_norm_squared_error_theta(norm_squared_errors)"""
 
-    plot_membrane_potential_norm_squared_error(norm_squared_errors['membrane_potentials'].T, figname="Norm Squared Error Membrane Potential")
-    #plot_norm_squared_error(norm_squared_errors['membrane_potentials'][:,2:6], figname="Norm Squared Error h_components")
-    plot_matrix_norm_squared_errors(norm_squared_errors['membrane_potentials'].T[2:6], 'H')
+    plot_state_norm_squared_error(norm_squared_errors['states'].T, figname="Norm Squared Error Membrane Potential")
+    #plot_norm_squared_error(norm_squared_errors['states'][:,2:6], figname="Norm Squared Error h_components")
+    plot_matrix_norm_squared_errors(norm_squared_errors['states'].T[2:6], 'H')
     #plot_h_parameter_error(norm_squared_errors, figname="Norm Squared Error h components")
     #measurements_ecdf = ECDF(norm_squared_errors['measurements'].T[0].ravel())
     lognse = np.log(norm_squared_errors['measurements'].T[0])

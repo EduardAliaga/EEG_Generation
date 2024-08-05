@@ -53,7 +53,7 @@ def generate_states_for_dcm_case(stimuli, state_dim, aug_state_dim, sources, H, 
             states[state_dim - source, :, t] = H[source]
     return states
 
-def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources, noise = 1e-4, noise_seed=2002):
+def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources, noise = 1e-1, noise_seed=2002):
     n_stimuli = states.shape[2]
     measurements = np.zeros((n_stimuli, sources))
     x0 = states[1, :, 0] - states[2, :, 0]
@@ -68,7 +68,7 @@ def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources,
     
     return measurements, measurements_noisy
 
-def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, noise = 1e-4, noise_seed=2002):
+def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, noise = 1e-6, noise_seed=2002):
 
     n_time_points = states.shape[1]
     measurements = np.zeros((n_time_points, 2))
@@ -94,7 +94,7 @@ def generate_synthetic_data(period_square, total_time, n_time_points, params_x, 
         states = generate_states_for_dcm_case(stimuli, **params_x)
         measurements, measurements_noisy = generate_measurements_dcm_case(states, **params_y)
     
-    np.save('synthetic_data2.npy', {
+    np.save('synthetic_data.npy', {
         'stimuli': stimuli,
         'states': states,
         'measurements': measurements,
@@ -126,10 +126,10 @@ if __name__ == "__main__":
         'gamma_3': 1/4,
         'gamma_4': 1/4,  # gamma_3 value
         'sources': 2,
-        'C_f': np.random.rand(sources, sources),
-        'C_l': np.random.rand(sources, sources), 
-        'C_u': np.random.rand(sources),
-        'C_b': np.random.rand(sources, sources), 
+        'C_f': np.eye(sources),
+        'C_l': np.eye(sources), 
+        'C_u': np.ones(sources),
+        'C_b': np.eye(sources), 
     }
     params_y = {
         'H': params_x['H'],
