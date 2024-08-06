@@ -45,6 +45,4 @@ def f_o(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamm
         f_x6(x, dt, theta, H_i, tau_i, gamma_4),
         f_x7(x, dt),
         f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l),
-        f_x_h_0(x),
-        f_x_h_1(x)
     ])
