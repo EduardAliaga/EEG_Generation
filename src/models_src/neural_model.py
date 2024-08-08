@@ -49,7 +49,7 @@ class NeuralModel:
             self.params_dict = update_params_dic(self.params_dict, self.params_vec)
 
 
-        np.save('params_dict', self.params_dict)
+        np.save('params_dict_with_stimuli', self.params_dict)
             
         return states_predicted, measurements_predicted
 

@@ -11,67 +11,67 @@ from jax import jacobian
 import matplotlib.pyplot as plt
 
 def main():
-#     data_file='synthetic_data.npy'
-#     data = np.load(data_file, allow_pickle=True).item()
-#     stimuli = data['stimuli']
-#     states = data['states']
-#     print(states.shape)
-#     states = np.array(states)
-#     measurements = data['measurements']
-#     measurements_noisy = data['measurements_noisy']
-#     aug_state_dim_flattened = 22
-#     n_params = 23
-#     covariance_value = 1e-6
-#     sources = 2
-#     dt = 1e-2
+    data_file='/Users/aliag/Desktop/EEG_Generation/src/models_src/synthetic_data.npy'
+    data = np.load(data_file, allow_pickle=True).item()
+    stimuli = data['stimuli']
+    states = data['states']
+    print(states.shape)
+    states = np.array(states)
+    measurements = data['measurements']
+    measurements_noisy = data['measurements_noisy']
+    aug_state_dim_flattened = 22
+    n_params = 23
+    covariance_value = 1e-6
+    sources = 2
+    dt = 1e-2
 
-#     params_dict = {
-#                     'theta': 0.5,
-#                     'H_e': 0.4,
-#                     'tau_e': 15.0,
-#                     'H_i': 0.2,
-#                     'tau_i': 12.0,
-#                     'gamma_1': 4.0,
-#                     'gamma_2': 4/20,
-#                     'gamma_3': 1/7,
-#                     'gamma_4': 1/7,
-#                     'C_f': np.random.randn(sources, sources),
-#                     'C_l': np.random.randn(sources, sources), 
-#                     'C_u': np.random.randn(sources),
-#                     'C_b': np.random.randn(sources, sources)
-#                 }
-#     np.save("initial_params.npy", params_dict)
-#     Q_x = np.eye(aug_state_dim_flattened) * covariance_value
-#     R_y = np.eye(sources) * covariance_value
-#     P_x_ = np.eye(aug_state_dim_flattened) * covariance_value
-#     P_x = np.eye(aug_state_dim_flattened) * covariance_value
-#     P_params_ = np.eye(n_params) * covariance_value
-#     P_params = np.eye(n_params) * covariance_value
-#     Q_params = np.eye(n_params) * covariance_value
-#     aug_state_dim = 11
-#     initial_x = np.zeros((aug_state_dim, sources))
-#     initial_H = np.eye(sources)
-#     state_dim = 9
-#     model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
-#     states_predicted, measurements_predicted = model.fit(stimuli, measurements_noisy)
-#     #test_states_predicted, test_measurements_predicted = model.test(stimuli[2500:3000])
+    params_dict = {
+                    'theta': 0.5,
+                    'H_e': 0.4,
+                    'tau_e': 15.0,
+                    'H_i': 0.2,
+                    'tau_i': 12.0,
+                    'gamma_1': 4.0,
+                    'gamma_2': 4/20,
+                    'gamma_3': 1/7,
+                    'gamma_4': 1/7,
+                    'C_f': np.random.randn(sources, sources),
+                    'C_l': np.random.randn(sources, sources), 
+                    'C_u': np.random.randn(sources),
+                    'C_b': np.random.randn(sources, sources)
+                }
+    np.save("initial_params.npy", params_dict)
+    Q_x = np.eye(aug_state_dim_flattened) * covariance_value
+    R_y = np.eye(sources) * covariance_value
+    P_x_ = np.eye(aug_state_dim_flattened) * covariance_value
+    P_x = np.eye(aug_state_dim_flattened) * covariance_value
+    P_params_ = np.eye(n_params) * covariance_value
+    P_params = np.eye(n_params) * covariance_value
+    Q_params = np.eye(n_params) * covariance_value
+    aug_state_dim = 11
+    initial_x = np.zeros((aug_state_dim, sources))
+    initial_H = np.eye(sources)
+    state_dim = 9
+    model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
+    states_predicted, measurements_predicted = model.fit(stimuli, measurements_noisy)
+    #test_states_predicted, test_measurements_predicted = model.test(stimuli[2500:3000])
 
-#     H = states_predicted[-1, 9:11, :]
-#     y = []
-#     for t in range(0,len(states_predicted)):
-#         x0 = states_predicted[t, 2, :] - states_predicted[t, 3, :]
-#         y.append(H @ x0)
-#     nsqe_measurements = get_norm_squared_error(measurements, y)
+    H = states_predicted[-1, 9:11, :]
+    y = []
+    for t in range(0,len(states_predicted)):
+        x0 = states_predicted[t, 2, :] - states_predicted[t, 3, :]
+        y.append(H @ x0)
+    nsqe_measurements = get_norm_squared_error(measurements, y)
 
 
-#     #norm_squared_errors =  get_norm_squared_errors(states_predicted, measurements_predicted, states, measurements, model.params_dict, real_params, model.state_dim)
+    #norm_squared_errors =  get_norm_squared_errors(states_predicted, measurements_predicted, states, measurements, model.params_dict, real_params, model.state_dim)
 
-#    #save_results(model.params_dict, states_predicted, norm_squared_errors)
+   #save_results(model.params_dict, states_predicted, norm_squared_errors)
 
-#     np.save("states_predicted.npy", states_predicted)
-#     np.save("measurements_predicted.npy", measurements_predicted)
-#     np.save("params_vec.npy", model.params_vec)
-#     np.save("H.npy", H)
+    np.save("states_predicted_synthetic_data.npy", states_predicted)
+    np.save("measurements_predicted_synthetic_data.npy", measurements_predicted)
+    np.save("params_vec_synthetic_data.npy", model.params_vec)
+    np.save("H_synthetic_data.npy", H)
 
     data_file ='synthetic_data.npy'
     data_file_2 ='states_predicted.npy'
