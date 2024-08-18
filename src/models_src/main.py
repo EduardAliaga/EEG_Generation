@@ -13,7 +13,7 @@ import os
 
 def main():
     print(os.getcwd())
-    data_file='./src/models_src/synthetic_data.npy'
+    data_file='/Users/aliag/Desktop/EEG_Generation/synthetic_data.npy'
     data = np.load(data_file, allow_pickle=True).item()
     stimuli = data['stimuli']
     states = data['states']
@@ -23,7 +23,7 @@ def main():
 
     aug_state_dim_flattened = 18
     n_params = 23
-    covariance_value = 1e-6
+    covariance_value = 1e-4
     sources = 2
     dt = 1e-2
 
@@ -73,7 +73,7 @@ def main():
     np.save("states_predicted.npy", states_predicted)
     np.save("measurements_predicted.npy", measurements_predicted)
     np.save("params_vec.npy", model.params_vec)
-    np.save("H.npy", H)
+    np.save("H.npy", model.H)
 
     data_file ='synthetic_data.npy'
     data_file_2 ='states_predicted.npy'

@@ -46,3 +46,18 @@ def f_o(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamm
         f_x7(x, dt),
         f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l),
     ])
+
+def f_o2(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b):
+    return jax.numpy.array([
+        f_x0(x, dt),
+        f_x1(x, dt),
+        f_x2(x, dt),
+        f_x3(x, dt),
+        f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u),
+        f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l),
+        f_x6(x, dt, theta, H_i, tau_i, gamma_4),
+        f_x7(x, dt),
+        f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l),
+        f_x_h_0(x),
+        f_x_h_1(x)
+    ])

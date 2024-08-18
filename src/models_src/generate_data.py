@@ -48,7 +48,7 @@ def generate_states_for_dcm_case(stimuli, state_dim, aug_state_dim, sources, H, 
     
     for t in range(1, n_time_points):
         x = states[:, :, t-1]
-        states[:, :, t] = sf_dcm.f_o(x, stimuli[t-1], dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)
+        states[:, :, t] = sf_dcm.f_o2(x, stimuli[t-1], dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)
         for source in range(0, sources):
             states[state_dim - source, :, t] = H[source]
     return states
@@ -94,7 +94,7 @@ def generate_synthetic_data(period_square, total_time, n_time_points, params_x, 
         states = generate_states_for_dcm_case(stimuli, **params_x)
         measurements, measurements_noisy = generate_measurements_dcm_case(states, **params_y)
     
-    np.save('synthetic_data2.npy', {
+    np.save('synthetic_data.npy', {
         'stimuli': stimuli,
         'states': states,
         'measurements': measurements,
@@ -126,10 +126,10 @@ if __name__ == "__main__":
         'gamma_3': 1/4,
         'gamma_4': 1/4,  # gamma_3 value
         'sources': 2,
-        'C_f': np.random.rand(sources, sources),
-        'C_l': np.random.rand(sources, sources), 
-        'C_u': np.random.rand(sources),
-        'C_b': np.random.rand(sources, sources), 
+        'C_f': np.eye(sources),
+        'C_l': np.eye(sources), 
+        'C_u': np.ones(sources),
+        'C_b': np.eye(sources), 
     }
     params_y = {
         'H': params_x['H'],
