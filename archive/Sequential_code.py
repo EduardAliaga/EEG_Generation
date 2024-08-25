@@ -68,7 +68,7 @@ def jacobian_f_o(x, u, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamm
 def measurement_function(x):
     return x[9:11] @ (x[2] - x[3])
 
-data_file ='/Users/aliag/Desktop/EEG_Generation/synthetic_data.npy'
+data_file ='/Users/aliag/Desktop/EEG_Generation/src/models_src/synthetic_data.npy'
 data_file_2 ='states_predicted.npy'
 data_file_3 = 'measurements_predicted.npy' 
 data_file_4 = 'params_vec.npy'
@@ -123,13 +123,13 @@ C_b = np.eye(sources)
 
 
 n_params = 2
-Q_x = np.eye(aug_state_dim_flattened) * 1e-4
+Q_x = np.eye(aug_state_dim_flattened) * 1e-1
 R_y = np.eye(sources) * 1e-4
 P_x_ = np.eye(aug_state_dim_flattened) * 1e-4
 P_x = np.eye(aug_state_dim_flattened) * 1e-4
-P_params_ = np.eye(n_params) * 1e-4
-P_params = np.eye(n_params) * 1e-4
-Q_params = np.eye(n_params) * 1e-4
+P_params_ = np.eye(n_params) * 1
+P_params = np.eye(n_params) * 1
+Q_params = np.eye(n_params) * 1
 params_vec = np.hstack((theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f.flatten(), C_l.flatten(), C_u.flatten(), C_b.flatten()))
 params_vec_2 = C_u.reshape(2)
 #states_predicted = np.zeros((num_time_points, aug_state_dim))
@@ -148,7 +148,7 @@ for t in range(1, 3000):
     # TODO: define the jacobians as  also 
     #F_x = np.array(jax.jit(jax.jacobian(f_o, argnums = (0)))(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec[17:19].reshape(2), params_vec[19:23].reshape(2,2))).reshape(18,18)
     F_x = np.array(jax.jit(jax.jacobian(f_o, argnums = (0)))(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec_2, params_vec[19:23].reshape(2,2))).reshape(18,18)
-    F_params = jacobian_f_o(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec_2, params_vec[19:23].reshape(2,2))
+    F_params = jacobian_f_o(x, stimuli[t-1], dt, params_vec[0], params_vec[1], params_vec[2], params_vec[3], params_vec[4], params_vec[5], params_vec[6], params_vec[7], params_vec[8], params_vec[9:13].reshape(2,2), params_vec[13:17].reshape(2,2), params_vec_2, params_vec[19:23].reshape(2,2)) + 1e-4
     print(t)
     #H = .x[.state_dim:.aug_state_dim].reshape((.state_dim, .state_dim))
     y_hat = H @ x[0]
@@ -162,6 +162,8 @@ for t in range(1, 3000):
     P_x = P_x_ @ (I + dH.T @ (R_y - dH @ P_x_ @ dH.T) @ dH @ P_x_)
 
     params_vec_2 = params_vec_2 - P_params_ @ F_params.T @ (x_hat - x)
+    if t == 35:
+         print('hola')
     #print(params_vec)
     P_params_ = P_params - P_params @ F_params.T @ (Q_x + F_params @ P_params @ F_params.T) @ F_params @ P_params
     P_params = P_params_ + Q_params
