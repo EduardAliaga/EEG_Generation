@@ -19,7 +19,7 @@ def generate_stimuli(period_square, total_time, n_time_points):
     stimulus_time = np.linspace(0, total_time, n_time_points)
     stimuli = np.zeros_like(stimulus_time)
     for i_stimulus, stimulus_ in enumerate(stimulus_time):
-        stimuli[i_stimulus] = ((stimulus_  // period_square) % 2) * 1000
+        stimuli[i_stimulus] = ((stimulus_  // period_square) % 2) * 100
 
     return stimuli
 

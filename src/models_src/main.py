@@ -13,7 +13,7 @@ import os
 
 def main():
     print(os.getcwd())
-    data_file='/Users/aliag/Desktop/EEG_Generation/synthetic_data.npy'
+    data_file='/Users/aliag/Desktop/EEG_Generation/src/models_src/synthetic_data.npy'
     data = np.load(data_file, allow_pickle=True).item()
     stimuli = data['stimuli']
     states = data['states']
@@ -31,16 +31,16 @@ def main():
                     'theta': 0.5,
                     'H_e': 0.4,
                     'tau_e': 15.0,
-                    'H_i': 0.2,
-                    'tau_i': 12.0,
-                    'gamma_1': 4.0,
-                    'gamma_2': 4/20,
-                    'gamma_3': 1/7,
-                    'gamma_4': 1/7,
-                    'C_f': np.random.randn(sources, sources),
-                    'C_l': np.random.randn(sources, sources), 
-                    'C_u': np.random.randn(sources),
-                    'C_b': np.random.randn(sources, sources)
+                    'H_i': 32.0,
+                    'tau_i': 16.0,
+                    'gamma_1': 1.0,
+                    'gamma_2': 4/5,
+                    'gamma_3': 1/4,
+                    'gamma_4': 1/4,
+                    'C_f': np.eye(2),
+                    'C_l': np.eye(2), 
+                    'C_u': np.ones(2),
+                    'C_b': np.array([[7.0, 7.0], [0.2, 0]])
                 }
 
     Q_x = np.eye(aug_state_dim_flattened) * covariance_value
@@ -49,10 +49,24 @@ def main():
     P_x = np.eye(aug_state_dim_flattened) * covariance_value
     P_params_ = np.eye(n_params) * covariance_value
     P_params = np.eye(n_params) * covariance_value
+    # P_params[1:1] = 5
+    # P_params[2:2] = 5
+    # P_params[3:3] = 5
+    # P_params[10:14] = 8
+    # P_params[14:18] = 8
+    # P_params[18:20] = 7
+    P_params[19,19] = 10
+    P_params[20,20] = 10
+    P_params[21,21] = 10
+    P_params[22,22] = 10
     Q_params = np.eye(n_params) * covariance_value
+    Q_params[19,19] = 10
+    Q_params[20,20] = 10
+    Q_params[21,21] = 10
+    Q_params[22,22] = 10
     aug_state_dim = 9
     initial_x = np.ones((aug_state_dim, sources))
-    initial_H = np.eye(sources)
+    initial_H = np.array([[1, 0.7], [0.5, 0.8]])
     state_dim = 9
     n_iterations = 1e3
     model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)

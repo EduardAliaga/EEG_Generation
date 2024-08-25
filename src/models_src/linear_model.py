@@ -4,9 +4,10 @@ from neural_model import *
 def f(x, u, W, tau, M, dt):
      return x + dt * (-x / tau + W @ x + M * u)
 
+
 class LinearModel(NeuralModel):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params):
+        super().__init__(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
         self.jac_f_dx = jax.jit(jax.jacobian(f,argnums=(0)))
         self.jac_f_dW = jax.jit(jax.jacobian(f,argnums=(2)))
         self.jac_f_dtau = jax.jit(jax.jacobian(f,argnums=(3)))
