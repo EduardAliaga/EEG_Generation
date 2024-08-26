@@ -5,16 +5,25 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from math import sqrt
 import numpy as np
-from filterpy.kalman import ExtendedKalmanFilter
+from EKF import ExtendedKalmanFilter
 from numpy import array, eye, asarray
-
+import jax
 from filterpy.common import Saver
 from filterpy.examples import RadarSim
 from pytest import approx
 from scipy.spatial.distance import mahalanobis as scipy_mahalanobis
 
+
 DO_PLOT = False
 
+def params_dict_to_vector(params_dict):
+    params_vec = []
+    for key, value in params_dict.items():
+        if isinstance(value, np.ndarray):
+            params_vec.extend(value.flatten())
+        else:
+            params_vec.append(value)
+    return np.array(params_vec)
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -32,19 +41,19 @@ def f_x3(x, dt):
      return x[3] + dt * x[6]
 
 def f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u):
-     return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(2)) @ (sigmoid(x[0] * theta)-0.5) + C_u @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
+     return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(2)) @ (jax.nn.sigmoid(x[0] * theta)-0.5) + C_u.T @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
 
 def f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l):
-     return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (sigmoid(x[0] * theta) - 0.5) + gamma_2 * (sigmoid(x[3] * theta) - 0.5)) * 2 * x[5]/tau_e - x[2]/tau_e**2)
+     return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (jax.nn.sigmoid(x[0] * theta) - 0.5) + gamma_2 * (jax.nn.sigmoid(x[3] * theta) - 0.5)) * 2 * x[5]/tau_e - x[2]/tau_e**2)
 
 def f_x6(x, dt, theta, H_i, tau_i, gamma_4):
-     return x[6] + dt * (H_i/tau_i * gamma_4 * (sigmoid(x[7] * theta) - 0.5) - 2 * x[6]/tau_i - x[3]/tau_i**2)
+     return x[6] + dt * (H_i/tau_i * gamma_4 * (jax.nn.sigmoid(x[7] * theta) - 0.5) - 2 * x[6]/tau_i - x[3]/tau_i**2)
 
 def f_x7(x, dt):
      return x[7] + dt * x[8]
 
 def f_x8(x, dt, theta, H_e, tau_e, gamma_3, C_b, C_l):
-    return x[8] + dt * (H_e/tau_e * ((C_b + C_l + gamma_3 * np.eye(len(x[0]))) @ (sigmoid(x[0] * theta) - 0.5)) - 2 * x[8]/tau_e - x[7]/tau_e**2)
+    return x[8] + dt * (H_e/tau_e * ((C_b + C_l + gamma_3 * np.eye(len(x[0]))) @ (jax.nn.sigmoid(x[0] * theta) - 0.5)) - 2 * x[8]/tau_e - x[7]/tau_e**2)
 
 def fz(z, dt, u):
     state_dim = 18
@@ -80,7 +89,8 @@ def fz(z, dt, u):
 
 def hz(z):
     t_H = np.array([[1, 0.7], [0.5, 0.8]])
-    return t_H @ z[0:2]
+    y = t_H @ z[0:2]
+    return y.reshape(2,1)
 
 def params_dict_to_vector(params_dict):
     params_vec = []
@@ -103,26 +113,42 @@ def H_of(x):
     H[:,0:2] = np.array([[1, 0.7], [0.5, 0.8]])
     return H
 
-dt = 0.05
+dt = 1e-2
 proccess_error = 0.05
 
 rk = ExtendedKalmanFilter(dim_x=41, dim_z=2)
+rk.dt = dt
 state_params_dim = 41
-x_init = np.hstack([np.zeros(18),params_vec[:,0]]).reshape(41,1)
-rk.x = x_init + np.random.randn(len(x_init),1)
-rk.x[20] = 7
-rk.x[21] = 14
-rk.x[22] = 30
-rk.P = np.eye(state_params_dim) * 100
-rk.P[20,20] = 30
-rk.P[21,21] = 40
-rk.P[22,22] = 30
+params_dict = {
+                # 'theta': 0.5,
+                # 'H_e': 0.4,
+                # 'tau_e': 15.0,
+                # 'H_i': 32.0,
+                # 'tau_i': 16.0,
+                # 'gamma_1': 1.0,
+                # 'gamma_2': 4/5,
+                # 'gamma_3': 1/4,
+                # 'gamma_4': 1/4,
+                # 'C_f': np.eye(2),
+                # 'C_l': np.eye(2), 
+                # 'C_u': np.ones(2),
+                'C_b': np.array([[7.0, 7.0], [0.2, 0]])
+            }
+params_vec = params_dict_to_vector(params_dict)
+x_init = np.hstack([np.zeros(18),params_vec[:,0]]).reshape(22,1)
+rk.x = x_init
+rk.P = np.eye(state_params_dim) * 1e-4
+rk.P[37,37] = 4
+rk.P[38,38] = 3
+rk.P[39,39] = 4
+rk.P[40,40] = 3
 
 rk.R = np.eye(2) * 10
-rk.Q = np.eye(state_params_dim) * 100
-rk.Q[20,20] = 30
-rk.Q[21,21] = 40
-rk.Q[22,22] = 30
+rk.Q = np.eye(state_params_dim) * 1e-4
+rk.Q[37,37] = 1
+rk.Q[38,38] = 1
+rk.Q[39,39] = 1
+rk.Q[40,40] = 1
 xs = []
 radar = RadarSim(dt)
 ps = []
@@ -135,17 +161,21 @@ states = data['states']
 states = np.array(states)
 measurements = data['measurements']
 measurements_noisy = data['measurements_noisy']
-dt = 1e-2
+
 states_predicted = []
+measurements_predicted = []
 t = 0
 
 for i in tqdm(range(3000)):
+    rk.F = rk.compute_jacobian(dt, stimuli[i-1])
     rk.update(measurements_noisy[i-1].reshape(-1,1), H_of, hz, R=rk.R)
     ps.append(rk.P)
-    rk.predict()
+    rk.predict(stimuli[t-1])
     xs.append(rk.x)
     states_predicted.append(rk.x)
+    measurements_predicted.append(rk.hx)
 states_predicted = np.array(states_predicted)
+measurements_predicted = np.array(measurements_predicted)
 print('hello')
     # test mahalanobis
 

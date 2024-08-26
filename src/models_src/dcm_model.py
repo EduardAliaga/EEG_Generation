@@ -11,6 +11,7 @@ class DCM(NeuralModel):
         self.jac_f_dx = jax.jit(jax.jacobian(sf_dcm.f_o, argnums = (0)))
         self.F_x = np.zeros((self.aug_state_dim_flattened, self.aug_state_dim_flattened))
         self.jac_measurement_f_dH = jax.jit(jax.jacobian(measurement_function,argnums=(0)))
+        self.jac_x_func = jax.jit(jax.jacobian(sf_dcm.f_o, argnums=0))
         self.jacobian_params_funcs = [
             (jax.jit(jax.jacobian(sf_dcm.f_o, argnums=3)), 'F_theta', -1),
             (jax.jit(jax.jacobian(sf_dcm.f_o, argnums=4)), 'F_H_e', -1),
@@ -32,7 +33,7 @@ class DCM(NeuralModel):
         return self.x
     
     def jacobian_f_o_x(self, u):
-        F_x = np.array(jax.jit(jax.jacobian(sf_dcm.f_o, argnums = (0)))(self.x, u, self.dt, *list(self.params_dict.values()))).reshape(18,18)
+        F_x = np.array(self.jac_x_func(self.x, u, self.dt, *list(self.params_dict.values()))).reshape(18,18)
         return F_x
 
     def compute_params_jacobian(self, jac_func, u, reshape, *params):

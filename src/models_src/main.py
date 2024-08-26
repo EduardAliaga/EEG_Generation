@@ -55,10 +55,10 @@ def main():
     # P_params[10:14] = 8
     # P_params[14:18] = 8
     # P_params[18:20] = 7
-    P_params[19,19] = 10
-    P_params[20,20] = 10
-    P_params[21,21] = 10
-    P_params[22,22] = 10
+    P_params[19,19] = 40
+    P_params[20,20] = 30
+    P_params[21,21] = 40
+    P_params[22,22] = 30
     Q_params = np.eye(n_params) * covariance_value
     Q_params[19,19] = 10
     Q_params[20,20] = 10

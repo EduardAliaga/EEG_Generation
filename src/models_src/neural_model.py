@@ -1,6 +1,7 @@
 import numpy as np
 from utils import *
 import jax
+from tqdm import tqdm
 
 """def measurement_function(x):
     return x[2:6].reshape(2,2) @ x[0:2]"""
@@ -20,7 +21,7 @@ class NeuralModel:
         self.params_vec = params_dict_to_vector(params_dict)
         self.initial_params_vec = params_dict_to_vector(params_dict)
         self.n_params = len(P_params)
-        self.Q_x = Q_x
+        self.Q_x = Q_x 
         self.R_y = R_y
         self.P_x_ = P_x_
         self.P_x = P_x
@@ -44,10 +45,9 @@ class NeuralModel:
         measurements_predicted = np.zeros((num_time_points, self.sources))
         # Set initial state
         states_predicted[0] = self.x
-        for t in range(1, num_time_points):
+        for t in tqdm(range(num_time_points)):
             F_x = self.jacobian_f_o_x(stimuli[t-1])
             F_params = self.jacobian_f_o(stimuli[t-1])
-            print(t)
             y = measurements_noisy[t-1]
             y_hat = self.H @ self.x[0]
             self.update_params(stimuli[t-1], t, F_x, F_params, self.H, y_hat, measurements_noisy)
@@ -106,8 +106,8 @@ class NeuralModel:
         self.P_params_ = self.P_params - self.P_params @ F_params.T @ (self.Q_x + F_params @ self.P_params @ F_params.T) @ F_params @ self.P_params
         self.P_params = self.P_params_ + self.Q_params
 
-        self.Q_x = self.dt * self.Q_x
-        self.Q_params = self.dt * self.Q_params
+        # self.Q_x = self.dt * self.Q_x
+        # self.Q_params = self.dt * self.Q_params
         self.x = self.x.reshape(self.aug_state_dim, self.sources)
 
     def jacobian_h(self, x):
