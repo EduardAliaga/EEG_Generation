@@ -1,13 +1,6 @@
 import numpy as np
-from generate_data import generate_synthetic_data
-from visualize import plot_all
-from linear_model import LinearModel
-from sigmoid_model import SigmoidModel
 from dcm_model import DCM
 from utils import *
-import jax.numpy as jnp
-from jax import grad
-from jax import jacobian
 import matplotlib.pyplot as plt
 import os
 

@@ -120,7 +120,8 @@ for i in tqdm(range(3000)):
     ckf.update(measurements[i-1].reshape(-1,1))
     # test mahalanobis
     states_predicted.append(ckf.x)
-
+states_predicted = np.array(states_predicted)
+print('hello')
 # import matplotlib.pyplot as plt
 # states_predicted = np.array(states_predicted)
 # plt.figure()

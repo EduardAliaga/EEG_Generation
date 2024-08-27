@@ -42,14 +42,15 @@ class NeuralModel:
         # for i in range(0,3):
         #     print(i)
         states_predicted = np.zeros((num_time_points, self.aug_state_dim, self.sources))
-        measurements_predicted = np.zeros((num_time_points, self.sources))
+        measurements_predicted = np.zeros((num_time_points, 2))
         # Set initial state
         states_predicted[0] = self.x
         for t in tqdm(range(num_time_points)):
             F_x = self.jacobian_f_o_x(stimuli[t-1])
             F_params = self.jacobian_f_o(stimuli[t-1])
             y = measurements_noisy[t-1]
-            y_hat = self.H @ self.x[0]
+            # y_hat = self.H @ self.x[0]
+            y_hat = self.H @ self.x
             self.update_params(stimuli[t-1], t, F_x, F_params, self.H, y_hat, measurements_noisy)
             if np.any(np.isnan(self.x)):
                 self.x = np.ones((self.aug_state_dim, self.sources))
@@ -64,7 +65,7 @@ class NeuralModel:
                 break
             # Assign predicted values
             states_predicted[t] = self.x
-            measurements_predicted[t] = y_hat
+            measurements_predicted[t] = y_hat[:,0]
             self.params_dict = update_params_dic(self.params_dict, self.params_vec)
 
             # self.H = np.linalg.inv((states_predicted[0:t,0].T @ states_predicted[0:t,0]) + 1e-4 *np.eye(2)) @ states_predicted[0:t,0].T @ measurements_noisy[0:t]
@@ -90,7 +91,7 @@ class NeuralModel:
         return states_predicted, measurements_predicted
     
     def update_params(self, u, t, F_x, F_params, H, y_hat, y):
-        dH = np.zeros((2,18))
+        dH = np.zeros((2,2))
         dH[0,0] = H[0,0]
         dH[0,1] = H[0,1]
         dH[1,0] = H[1,0]
@@ -98,7 +99,7 @@ class NeuralModel:
         S = dH @ self.P_x_ @ dH.T + self.R_y 
         S_inv = np.linalg.inv(S)
         x_hat = self.f_o(u)
-        self.x = x_hat - self.P_x_ @ dH.T @ S_inv @ (y_hat - y[t])
+        self.x = x_hat - self.P_x_ @ dH.T @ S_inv @ (y_hat[:,0] - y[t])
         I = np.eye(self.aug_state_dim_flattened)
         self.P_x_ = F_x @ self.P_x @ F_x.T + self.Q_x
         self.P_x = self.P_x_ @ (I + dH.T @ (self.R_y - dH @ self.P_x_ @ dH.T) @ dH @ self.P_x_)
