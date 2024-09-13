@@ -7,6 +7,8 @@ from numpy.random import randn
 from pytest import approx
 from scipy.spatial.distance import mahalanobis as scipy_mahalanobisz
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
@@ -122,7 +124,7 @@ for i in tqdm(range(3000)):
     states_predicted.append(ckf.x)
 states_predicted = np.array(states_predicted)
 print('hello')
-# import matplotlib.pyplot as plt
+
 # states_predicted = np.array(states_predicted)
 # plt.figure()
 # plt.plot(states[0,0,:])
