@@ -125,7 +125,7 @@ M = 100
 
 membrane_potentials = np.zeros((n_stimuli, 2))
 membrane_potentials[0] = np.array([0, 0])
-H = np.array([[1, 1], [0.5, 0.4]])
+H = np.array([[1, 0.8], [0.5, 0.4]])
 measurements = np.zeros((n_stimuli, 2))
 measurements[0] = H @ membrane_potentials[0]
 # Generate membrane potentials

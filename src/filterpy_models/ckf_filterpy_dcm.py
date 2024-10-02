@@ -28,7 +28,7 @@ def f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u):
      return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(2)) @ (sigmoid(x[0] * theta)-0.5) + C_u @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
 
 def f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l):
-     return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (sigmoid(x[0] * theta) - 0.5) + gamma_2 * (sigmoid(x[3] * theta) - 0.5)) * 2 * x[5]/tau_e - x[2]/tau_e**2)
+     return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (sigmoid(x[0] * theta) - 0.5) + gamma_2 * (sigmoid(x[3] * theta) - 0.5)) - 2 * x[5]/tau_e - x[2]/tau_e**2)
 
 def f_x6(x, dt, theta, H_i, tau_i, gamma_4):
      return x[6] + dt * (H_i/tau_i * gamma_4 * (sigmoid(x[7] * theta) - 0.5) - 2 * x[6]/tau_i - x[3]/tau_i**2)
@@ -52,7 +52,7 @@ def fz(z, dt, u):
     gamma_4 = z[state_dim+8]
     C_f = z[state_dim+9:state_dim+13].reshape(2,2)
     C_l = z[state_dim+13:state_dim+17].reshape(2,2)
-    C_u = z[state_dim+17:state_dim+19]
+    C_u = z[state_dim+17:state_dim+19].reshape(2,)
     C_b = z[state_dim+19: state_dim+23].reshape(2,2)
     x = z[0:state_dim].reshape(9,2)
     x_new =  np.array([
@@ -72,7 +72,7 @@ def fz(z, dt, u):
     return z_new
 
 def hz(z):
-    H = np.array([[1, 0.7], [0.5, 0.8]])
+    H = np.array([[1, 0], [0, 1]])
     return H @ z[0:2]
 
 def params_dict_to_vector(params_dict):
@@ -96,33 +96,39 @@ ckf = CKF(dim_x=41, dim_z=2, dt=1e-2, hx=hz, fx=fz)
 state_params_dim = 41
 x_init = np.hstack([np.zeros(18),params_vec[:,0]]).reshape(41,1)
 ckf.x = x_init + np.random.randn(len(x_init),1)
-ckf.x[20] = 7
-ckf.x[21] = 14
-ckf.x[22] = 30
+# ckf.x[20] = 7
+# ckf.x[21] = 14
+# ckf.x[22] = 30
 ckf.P = np.eye(state_params_dim) * 1e-2
-ckf.P[20,20] = 3
-ckf.P[21,21] = 4
-ckf.P[22,22] = 3
+# ckf.P[20,20] = 3
+# ckf.P[21,21] = 4
+# ckf.P[22,22] = 3
 
 ckf.R = np.eye(2) * 1e-4
 ckf.Q = np.eye(state_params_dim) * 1e-4
 
-data_file='/Users/aliag/Desktop/EEG_Generation/src/models_src/synthetic_data.npy'
+data_file='/Users/aliag/Desktop/EEG_Generation/data/real_data/Fz_Cz.npy'
+# data_file='/Users/aliag/Desktop/EEG_Generation/data/synthetic_data/synthetic_data_dcm.npy'
 data = np.load(data_file, allow_pickle=True).item()
 stimuli = data['stimuli']
-states = data['states']
-states = np.array(states)
+stimuli_train = stimuli[0:3000]
+# states = data['states']
+# states = np.array(states)
 measurements = data['measurements']
-measurements_noisy = data['measurements_noisy']
+measurements_noisy = data['measurements']
+measurements_noisy_train = measurements_noisy[0:3000]
 dt = 1e-2
 states_predicted = []
 t = 0
+measurements_predicted = []
 for i in tqdm(range(3000)):
     ckf.predict(fx_args = (stimuli[i-1]))
-    ckf.update(measurements[i-1].reshape(-1,1))
+    ckf.update(measurements_noisy[i-1].reshape(-1,1))
     # test mahalanobis
     states_predicted.append(ckf.x)
+    measurements_predicted.append(ckf.z)
 states_predicted = np.array(states_predicted)
+measurements_predicted = np.array(measurements_predicted)
 print('hello')
 
 # states_predicted = np.array(states_predicted)
@@ -143,3 +149,14 @@ print('hello')
 # plt.plot(theta_norms)
 # plt.show()
 # print('finished')
+# test_stimuli = stimuli[3000:3500]
+test_states = []
+test_measurements = []
+for t in tqdm(range(1000)):
+    x_predicted = fz(ckf.x,dt,stimuli[3800+t-1])
+    y_predicted = hz(x_predicted)
+    test_states.append(x_predicted)
+    test_measurements.append(y_predicted)
+test_states = np.array(test_states)
+test_measurements = np.array(test_measurements)
+

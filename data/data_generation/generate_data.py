@@ -2,9 +2,9 @@ import sys
 sys.path.insert(0, '../../')
 import numpy as np
 import numpy.random as rnd
-import src.models_src.state_functions_dcm as sf_dcm
+import state_functions_dcm as sf_dcm
 import matplotlib.pyplot as plt
-from src.models_src.utils import sigmoid
+from utils import sigmoid
 
 def generate_stimuli(period_square, total_time, n_time_points):
     """
@@ -17,18 +17,43 @@ def generate_stimuli(period_square, total_time, n_time_points):
     Returns:
     array: Generated stimuli.
     """
-    stimulus_time = np.linspace(0, total_time, n_time_points)
+    # stimulus_time = np.linspace(0, total_time, n_time_points)
+    # stimuli = np.zeros_like(stimulus_time)
+    # j = 0
+    # sq = 0
+    # for i_stimulus, stimulus_ in enumerate(stimulus_time):
+    #     # stimuli[i_stimulus] = ((stimulus_  // period_square) % 2)
+    #     if ((stimulus_  // period_square) % 2) == 1:
+    #         if int(j/30)%10 == 0:
+    #             stimuli[i_stimulus] = ((stimulus_  // period_square) % 2)
+    #         else:
+    #             stimuli[i_stimulus] = ((stimulus_  // period_square) % 2) *0.5
+    #         j += 1
+    # return stimuli
+    stimulus_time = np.linspace(0, 300, 3000)
+    period_square = 30
     stimuli = np.zeros_like(stimulus_time)
-    for i_stimulus, stimulus_ in enumerate(stimulus_time):
-        stimuli[i_stimulus] = ((stimulus_  // period_square) % 2)
-
+    j = 0
+    sq = 0
+    stimuli = np.zeros(3000)
+    r = rnd.randint(0,9)
+    for i_stimulus in range(0, 3000, period_square):
+        if (i_stimulus // period_square) % 2:
+            if j == r:
+                stimuli[i_stimulus:i_stimulus+period_square] = np.ones(period_square)
+            else:
+                stimuli[i_stimulus:i_stimulus+period_square] = np.ones(period_square)*0.5
+            j += 1
+            if j==10:
+                j = 0
+                r = rnd.randint(0,9)
     return stimuli
 
 def generate_states_for_linear_and_sigmoid_case(stimuli, model, state_dim, aug_state_dim, sources, dt, theta, tau, M, W, H):
 
     n_time_points = len(stimuli)
-    states = np.zeros((n_time_points, aug_state_dim))
-    states[0] = np.zeros(2)
+    states = np.zeros((n_time_points, 9))
+
     for t in range(1, n_time_points):
         x = states[t-1]
         if model =='linear':
@@ -40,15 +65,15 @@ def generate_states_for_linear_and_sigmoid_case(stimuli, model, state_dim, aug_s
 def generate_states_for_dcm_case(stimuli, state_dim, aug_state_dim, sources, H, dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b):
 
     n_time_points = stimuli.shape[0]
-    states = np.zeros((aug_state_dim, sources, n_time_points))
+    states = np.ones((aug_state_dim, sources, n_time_points))
     for source in range(0, sources):
-        states[state_dim - source, :, 0] = H[source]
+        states[9:11, :, 0] = H
     
     for t in range(1, n_time_points):
         x = states[:, :, t-1]
         states[:, :, t] = sf_dcm.f_o2(x, stimuli[t-1], dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)
-        for source in range(0, sources):
-            states[state_dim - source, :, t] = H[source]
+        # for source in range(0, sources):
+        #     states[state_dim - source, :, t] = H[source]
     return states
 
 def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources, noise = 1e-4, noise_seed=2002):
@@ -66,7 +91,7 @@ def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources,
     
     return measurements, measurements_noisy
 
-def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, sources, noise = 1e-4, noise_seed=2002):
+def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, sources, noise = 0, noise_seed=2002):
 
     n_time_points = states.shape[0]
     measurements = np.zeros((n_time_points, 2))

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     model = 'sigmoid'
     tau = 100.0
     M = 100.0
-    theta = 1.0
+    theta = 0.56
     W = np.zeros((2,2))
     W[0,1] = 1e-1
     W[1,0] = -1e-1
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         'aug_state_dim': 2,
         'sources' : 1,
         'dt': dt,
-        'theta' : 0.56,
+        'theta' : theta,
         'tau' : tau,
         'M': M,
         'W': W,

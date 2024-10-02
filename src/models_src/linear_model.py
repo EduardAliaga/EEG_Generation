@@ -1,7 +1,7 @@
-from neural_model import *
+from neural_for_linear import *
 
 
-def f(x, u, dt, W, tau, M):
+def f(x, u, dt, W, M, tau):
      return x + dt * (-x / tau + W @ x + M * u)
 
 

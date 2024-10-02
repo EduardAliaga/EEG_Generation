@@ -169,9 +169,14 @@ n_stimuli = 3000
 # Create synthetic stimuli
 period_square = 10
 stimuli = np.zeros(n_stimuli)
+j = 0
 for i_stimulus in range(0, n_stimuli, period_square):
     if (i_stimulus // period_square) % 2:
-        stimuli[i_stimulus: i_stimulus + period_square] = np.ones(period_square)
+            if j % 10 == 0:
+                stimuli[i_stimulus: i_stimulus + period_square] = np.ones(period_square)
+            else:
+                stimuli[i_stimulus: i_stimulus + period_square] = np.ones(period_square) * 0.5
+            j+=1
 
 tau = 1e2
 dt = 1e-1
@@ -184,7 +189,7 @@ M = 100
 
 membrane_potentials = np.zeros((n_stimuli, 2))
 membrane_potentials[0] = np.array([0, 0])
-H = np.array([[1, 0], [0, 0.4]])
+H = np.array([[1, 0.8], [0.5, 0.4]])
 measurements = np.zeros((n_stimuli, 2))
 measurements[0] = H @ membrane_potentials[0]
 # Generate membrane potentials
@@ -195,8 +200,6 @@ for t in range(1, n_stimuli):
 seed_measurements = 2002
 rng = rnd.default_rng(seed_measurements)
 measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(2), cov=np.eye(2), size=n_stimuli)
-
-
 Q_x = np.eye(2) * 1e-6
 R_y = np.eye(2) * 1e-6
 P_x_ = np.eye(2) * 1e-6
