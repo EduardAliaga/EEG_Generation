@@ -58,51 +58,67 @@ def get_squared_error(x, x_hat):
     return (x - x_hat)**2
 
 def plot_states_predicted_vs_real(states_predicted, real_states, save_path, model):
-    plt.figure()
-    plt.title("Predicted vs real states")
-    plt.plot(states_predicted[:,0,0], c='#1f77b4', label = 'prediction region 0')
-    plt.plot(states_predicted[:,1,0], c = 'orange', label = 'prediction region 1')
-    # plt.plot(real_states[:,0], c='#1f77b4', label = 'ground truth region 0', linestyle = '--', alpha = 0.5)
-    # plt.plot(real_states[:,1], c='orange', label = 'ground truth region 1', linestyle = '--', alpha = 0.5)
-    plt.plot(real_states[0,0,:], c='#1f77b4', label = 'real state region 0', linestyle = '--', alpha = 0.5)
-    plt.plot(real_states[0,1,:], c='orange', label = 'real state region 1', linestyle = '--', alpha = 0.5)
-    plt.xlabel("time")
-    plt.ylabel("signal value")
-    plt.legend()
+    colors = ['tab:blue', 'tab:orange', 'tab:green']
+
+    # Create a figure with three subplots in a row
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    # Loop through each source and plot the predicted vs real states in each subplot
+    for source in [0, 1, 2]:
+        ax = axes[source]
+        ax.set_title(f"Source {source}")
+        ax.plot(states_predicted[:, 0, source], c=colors[source], label='prediction')
+        ax.plot(real_states[0, source, :], c=colors[source], label='real', linestyle='--', alpha=0.5, linewidth = 3)
+        ax.set_xlabel("time")
+        ax.set_ylabel("signal value")
+        ax.legend(loc="lower right")
+
+    # Adjust layout to avoid overlap and save the figure
+    fig.suptitle("Predicted vs Real States Across All Sources", fontsize=16)
+    plt.tight_layout()
     plt.savefig(os.path.join(save_path, f'states_predicted_vs_real_{model}.pdf'))
-    plt.show(block = False)
+    plt.show(block=False)
 
 def plot_measurements_predicted_vs_real(measurements_predicted, real_measurements, save_path, model):
-    plt.figure()
-    plt.title("Predicted vs ground truth measurements")
-    plt.plot(measurements_predicted[:,0], c='#1f77b4', label = 'prediction region 0')
-    plt.plot(measurements_predicted[:,1], c='orange', label = 'prediction region 1')
-    plt.plot(real_measurements[:,0], c='#1f77b4', label = 'ground truth region 0', linestyle = '--', alpha = 0.5)
-    plt.plot(real_measurements[:,1], c='orange', label = 'ground truth region 1', linestyle = '--', alpha = 0.5)
-    plt.xlabel("time")
-    plt.ylabel("signal value")
-    plt.legend()
-    plt.savefig(os.path.join(save_path, f'measurements_predicted_vs_real_{model}.pdf'))
-    plt.show(block = False)
+    colors = ['tab:blue', 'tab:orange', 'tab:green']
 
-model = 'dcm'
-model_data = 'dcm'
-states_file=f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data/states_predicted.npy"
-measurements_file = f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data/measurements_predicted.npy"
-data_file = f'/Users/aliag/Desktop/EEG_Generation/data/synthetic_data/synthetic_data_{model_data}.npy'
-loss_file = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data/mse_csv.csv'
-states_predicted = np.load(states_file, allow_pickle=True)
-measurements_predicted = np.load(measurements_file, allow_pickle=True)
-real_data = np.load(data_file, allow_pickle=True).item()
-real_states = real_data['states']
-real_states = np.array(real_states)
-real_measurements = real_data['measurements_noisy']
-save_path = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data'
-norm_squared_error = get_norm_squared_error(real_measurements, measurements_predicted)
-# plt.figure()
-# plt.plot(norm_squared_error)
-# plt.show()
-plot_states_predicted_vs_real(states_predicted, real_states, save_path, model)
-plot_measurements_predicted_vs_real(measurements_predicted, real_measurements, save_path, model)
-plot_losses_from_csv(loss_file, save_path, model)
-print('hello')
+    # Create a figure with three subplots in a row
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    # Loop through each source and plot the predicted vs real states in each subplot
+    for source in [0, 1, 2]:
+        ax = axes[source]
+        ax.set_title(f"Source {source}")
+        ax.plot(measurements_predicted[:, source], c=colors[source], label='prediction')
+        ax.plot(real_measurements[:, source], c=colors[source], label='real', linestyle='--', alpha=0.5, linewidth = 3)
+        ax.set_xlabel("time")
+        ax.set_ylabel("signal value")
+        ax.legend(loc="lower right")
+
+    fig.suptitle("Predicted vs Real Measurements Across All Sources", fontsize=16)
+    # Adjust layout to avoid overlap and save the figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, f'measurements_predicted_vs_real_{model}.pdf'))
+    plt.show(block=False)
+
+# model = 'dcm'
+# model_data = 'dcm'
+# states_file=f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H/states_predicted.npy"
+# measurements_file = f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H/measurements_predicted.npy"
+# data_file = f'/Users/aliag/Desktop/EEG_Generation/data/synthetic_data/synthetic_data_{model_data}.npy'
+# loss_file = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H/mse_csv.csv'
+# states_predicted = np.load(states_file, allow_pickle=True)
+# measurements_predicted = np.load(measurements_file, allow_pickle=True)
+# real_data = np.load(data_file, allow_pickle=True).item()
+# real_states = real_data['states']
+# real_states = np.array(real_states)
+# real_measurements = real_data['measurements_noisy']
+# save_path = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H/'
+# norm_squared_error = get_norm_squared_error(real_measurements, measurements_predicted)
+# # plt.figure()
+# # plt.plot(norm_squared_error)
+# # plt.show()
+# plot_states_predicted_vs_real(states_predicted, real_states, save_path, model)
+# plot_measurements_predicted_vs_real(measurements_predicted, real_measurements, save_path, model)
+# plot_losses_from_csv(loss_file, save_path, model)
+# print('hello')

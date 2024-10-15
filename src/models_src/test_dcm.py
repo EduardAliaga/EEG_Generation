@@ -6,6 +6,11 @@ import os
 import scipy.signal as signal
 import jax
 import random
+import itertools
+import sys
+sys.path.insert(0, '../')
+# import visualization.predictions as pd
+
 def main():
     print(os.getcwd())
     seed = 42  # Choose any integer for the seed
@@ -25,6 +30,7 @@ def main():
     states = np.array(states)
     measurements = data['measurements']
     measurements_noisy = data['measurements_noisy']
+    params = data['params']
     new_states = np.zeros((11,2,3000))
     fs = 300
     lowcut = 1.0  # Low cutoff frequency in Hz
@@ -45,76 +51,109 @@ def main():
     #     new_states[i,0] = states[0]
     #     new_states[i,1] = states[1]
     # stimuli = np.array([stimuli, stimuli]).T
-    aug_state_dim_flattened = 18
-    n_params = 23
+  
+    n_params = 6
     covariance_value = 1e-6
-    sources = 2
+    sources = 3
+    state_dim = 9
+    aug_state_dim_flattened = sources * state_dim
     dt = 1e-1
-
+    noise = 0.2
     params_dict = {
-                   'theta': 0.11,
-                   'H_e': 0.9,
-                   'tau_e': 3.0,
-                   'H_i': 25.0,
-                   'tau_i': 20.0,
-                   'gamma_1': 1.0,
-                   'gamma_2': 4/7,
-                   'gamma_3': 1/8,
-                   'gamma_4': 1/2,
-                   'C_f': np.eye(2)*0.5,
-                   'C_l': np.eye(2)*0.5,
-                   'C_u': np.ones(2)*0.5,
-                   'C_b': np.eye(2) * 0.5
+                #    'theta': 0.11,
+                #    'H_e': 0.9,
+                #    'tau_e': 3.0,
+                #    'H_i': 25.0,
+                #    'tau_i': 20.0,
+                #    'gamma_1': 1.0,
+                #    'gamma_2': 4/7,
+                #    'gamma_3': 1/8,
+                #    'gamma_4': 1/2,
+                    # 'C_f' : np.zeros(2),
+                    # 'C_l' : np.zeros(2),
+                    # 'C_u' : 0,
+                    # 'C_b' : 0
+                    # 'C_f' : np.array([25+ 25*noise,30+ 25*noise]),
+                    # 'C_l' : np.array([2+ 2*noise,10+ 10*noise]),
+                    # 'C_u' : 100+100*noise,
+                    # 'C_b' : 45 + 45*noise
+                    'C_f' : np.zeros(2),
+                    'C_l' : np.zeros(2),
+                    'C_u' : np.zeros(1),
+                    'C_b' : np.zeros(1)
                 }
     Q_x = np.eye(aug_state_dim_flattened) * 1e-6
-    # Q_x[18,18] = 10
-    # Q_x[19,19] = 10
-    # Q_x[20,20] = 10
-    # Q_x[21,21] = 10
-    R_y = np.eye(sources) * 1e-4
+
+    R_y = np.eye(sources) * 1e-6
     P_x_ = np.eye(aug_state_dim_flattened) * 1e-6
     P_x = np.eye(aug_state_dim_flattened) * 1e-6
     P_params_ = np.eye(n_params) * 1e-6
     P_params = np.eye(n_params) * 1e-6
-    # P_params_ = np.eye(n_params) * 1e-1
-    # P_params = np.eye(n_params) * 1e-1
-    # P_params[1:1] = 5
-    # P_params[2:2] = 5
-    # P_params[3:3] = 5
-    # P_params[10:14] = 8
-    # P_params[14:18] = 8
-    # P_params[18:20] = 7
-    # P_params[19,19] = 40
-    # P_params[20,20] = 30
-    # P_params[21,21] = 40
-    # P_params[22,22] = 30
+
     Q_params = np.eye(n_params)*1e-6
-    # Q_params[0,0] = 1e-4
-    # Q_params[1,1] = 1e-4
-    # Q_params[2,2] = 1e-4
-    # Q_params[4,4] = 1e-4
-    # Q_params[13,13] = 1e-4
-    # Q_params[16,16] = 1e-4
-    # Q_params[19,19] = 1e-4
-    # Q_params[20,20] = 1e-4
-    # Q_params[21,21] = 1e-4
-    # Q_params[22,22] = 1e-4
+
     aug_state_dim = 9
-    initial_x = np.zeros((aug_state_dim, sources))
+    initial_x = np.ones((state_dim, sources))
     # initial_H = np.eye(2)
 
-    initial_H = np.array([[0.3, 0.7], [0.9, 0.1]])
+    # initial_H = np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]])
+    # intitial_H = initial_H + initial_H*0.1
+    # initial_H = np.array([[1.1, 0.7, 0.4], [0.6, 0.5, 0.8], [1.4, 0.3, 1.1]])
+    # initial_H =np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]])
     # initial_H = np.array([[0.9, 0.9], [0.4, 0.5]])
     # initial_x[9:11] = initial_H
     # initial_H = np.array([[1, 1], [0.5, 0.4]])
-    state_dim = 9
     n_iterations = 1e3
-    dcm_model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
+    covariance_values = [1e-6, 1e-4, 1e-2]
+    # dcm_model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
     # new_states = new_states.reshape(3000,11,2)
-    states_predicted, measurements_predicted = dcm_model.fit(stimuli, measurements_noisy, states)
+    # states_predicted, measurements_predicted = dcm_model.fit(stimuli, measurements_noisy, states)
+    experiment = 0
+    deviation = '20%'
+    H_state = 'unknown_H'
+    for Q_x_value, R_y_value, Q_params_value in itertools.product(covariance_values, repeat=3):
+        # initial_H = np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]])
+        initial_H = np.random.randn(3,3)
+        # intitial_H = initial_H + initial_H*0.2
+        directory = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/{H_state}/0_start/experiment_{experiment}' 
+        # directory = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/{H_state}/{deviation}_deviation/experiment_{experiment}' 
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        # Initialize the covariance matrices with the current values
+        Q_x = np.eye(aug_state_dim_flattened) * Q_x_value
+        R_y = np.eye(sources) * R_y_value
+        P_x_ = np.eye(aug_state_dim_flattened) * 1e-6
+        P_x = np.eye(aug_state_dim_flattened) * 1e-6
+        P_params_ = np.eye(n_params) * 1e-6
+        P_params = np.eye(n_params) * 1e-6
+        Q_params = np.eye(n_params) * Q_params_value
+        if experiment == 5:
+            print('hello')
+        # Initialize your model with the current covariance matrices
+        dcm_model = DCM(state_dim, aug_state_dim, sources, dt, initial_x, initial_H, params_dict, Q_x, R_y, P_x_, P_x, P_params_, P_params, Q_params)
+        
+        # Train the model
+        states_predicted, measurements_predicted = dcm_model.fit(stimuli, measurements_noisy, states, experiment)
+        
+        # Save the results with unique filenames based on the covariance values
+        # np.save(os.path.join(directory, f"states_predicted_Qx_{Q_x_value}_Ry_{R_y_value}_Qparams_{Q_params_value}.npy"), states_predicted)
+        # np.save(os.path.join(directory, f"measurements_predicted_Qx_{Q_x_value}_Ry_{R_y_value}_Qparams_{Q_params_value}.npy"), measurements_predicted)
 
-    np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data/states_predicted.npy", states_predicted)
-    np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/unknown_H/{model}/{model_data}_data/measurements_predicted.npy", measurements_predicted)
+        # loss_file = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/{H_state}/0_start/experiment_{experiment}/mse_csv.csv'
+        # loss_file = f'/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/{H_state}/{deviation}_deviation/experiment_{experiment}/mse_csv.csv'
+        # pd.plot_states_predicted_vs_real(states_predicted, states, directory, model)
+        # pd.plot_measurements_predicted_vs_real(measurements_predicted, measurements_noisy, directory, model)
+        # pd.plot_losses_from_csv(loss_file, directory, model)
+        params_dict = {
+                    'C_f' : np.zeros(2),
+                    'C_l' : np.zeros(2),
+                    'C_u' : np.zeros(1),
+                    'C_b' : np.zeros(1)
+                }
+        initial_x = np.ones((state_dim, sources))
+        experiment +=1
+    # np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H/states_predicted.npy", states_predicted)
+    # np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/synthetic_data/known_H//measurements_predicted.npy", measurements_predicted)
     # np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/real_data/dcm/states_predicted.npy", states_predicted)
     # np.save(f"/Users/aliag/Desktop/TFG/Figures/Results/real_data/dcm/measurements_predicted.npy", measurements_predicted)
     # H = states_predicted[-1, 9:11, :]

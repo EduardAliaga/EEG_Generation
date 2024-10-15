@@ -11,8 +11,10 @@ if __name__ == "__main__":
     params_x = {
         'state_dim': 9,
         'aug_state_dim': 11,
-        'sources' : 2,
-        'H': np.array([[1, 1], [0.5, 0.4]]),
+        'sources' : sources,
+        # 'H': np.array([[1, 1], [0.5, 0.4]]),
+        # 'H': np.array([[-0.38, -0.14, 0.32], [-0.13, -0.05, -0.11], [-0.43, -0.16, -0.37]]),
+        'H': np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]]),
         'dt': dt,
         'theta': .56,
         'H_e': 2.08,
@@ -23,15 +25,14 @@ if __name__ == "__main__":
         'gamma_2': 4/5,
         'gamma_3': 1/4,
         'gamma_4': 1/4,  # gamma_3 value
-        'sources': 2,
-        'C_f': np.eye(sources),
-        'C_l': np.eye(sources), 
-        'C_u': np.ones(sources),
-        'C_b': np.eye(sources), 
-        # 'C_f': np.random.randn(2,2),
-        # 'C_l': np.random.randn(2,2),
-        # 'C_u': np.random.randn(2),
-        # 'C_b': np.random.randn(2,2),
+        # 'C_f': np.array([[0, 0, 0], [25, 0, 0], [30, 0, 0]]), #connectivity matrix already transposed
+        # 'C_l': np.array([[0, 0, 0], [0, 0, 2], [0, 10, 0]]), #connectivity matrix already transposed
+        # 'C_u': np.array([5,0,0]),
+        # 'C_b': np.array([[0, 0, 16], [0, 0, 0], [0, 0, 0]]), #connectivity matrix already transposed
+        'C_f': np.array([[0, 0, 0], [-0.17, 0, 0], [-0.26, 0, 0]]), #connectivity matrix already transposed
+        'C_l': np.array([[0, 0, 0], [0, 0, -0.22], [0, -0.19, 0]]), #connectivity matrix already transposed
+        'C_u': np.array([-0.12,0,0]),
+        'C_b': np.array([[0, 0, 0.33], [0, 0, 0], [0, 0, 0]]), #connectivity matrix already transposed
     }
     params_y = {
         'H': params_x['H'],

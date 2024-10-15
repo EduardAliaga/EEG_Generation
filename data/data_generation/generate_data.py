@@ -30,14 +30,14 @@ def generate_stimuli(period_square, total_time, n_time_points):
     #             stimuli[i_stimulus] = ((stimulus_  // period_square) % 2) *0.5
     #         j += 1
     # return stimuli
-    stimulus_time = np.linspace(0, 300, 3000)
+    stimulus_time = np.linspace(0, 300, n_time_points)
     period_square = 30
     stimuli = np.zeros_like(stimulus_time)
     j = 0
     sq = 0
-    stimuli = np.zeros(3000)
+    stimuli = np.zeros(n_time_points)
     r = rnd.randint(0,9)
-    for i_stimulus in range(0, 3000, period_square):
+    for i_stimulus in range(0, n_time_points, period_square):
         if (i_stimulus // period_square) % 2:
             if j == r:
                 stimuli[i_stimulus:i_stimulus+period_square] = np.ones(period_square)
@@ -66,9 +66,6 @@ def generate_states_for_dcm_case(stimuli, state_dim, aug_state_dim, sources, H, 
 
     n_time_points = stimuli.shape[0]
     states = np.ones((aug_state_dim, sources, n_time_points))
-    for source in range(0, sources):
-        states[9:11, :, 0] = H
-    
     for t in range(1, n_time_points):
         x = states[:, :, t-1]
         states[:, :, t] = sf_dcm.f_o2(x, stimuli[t-1], dt, theta, H_e, tau_e, H_i, tau_i, gamma_1, gamma_2, gamma_3, gamma_4, C_f, C_l, C_u, C_b)
@@ -76,31 +73,30 @@ def generate_states_for_dcm_case(stimuli, state_dim, aug_state_dim, sources, H, 
         #     states[state_dim - source, :, t] = H[source]
     return states
 
-def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources, noise = 1e-4, noise_seed=2002):
+def generate_measurements_dcm_case(states, H, state_dim, aug_state_dim, sources, noise = 1e-1, noise_seed=2002):
     n_stimuli = states.shape[2]
     measurements = np.zeros((n_stimuli, sources))
     x0 = states[1, :, 0] - states[2, :, 0]
     measurements[0] = H @ x0
-    states[state_dim:aug_state_dim, :, 0] = H
     for t in range(1, n_stimuli):
         x0 = states[2, :, t] - states[3, :, t]
         measurements[t] = H @ x0
 
     rng = rnd.default_rng(noise_seed)
-    measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(2), cov=np.eye(2) * noise, size=n_stimuli)
+    measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(sources), cov=np.eye(sources) * noise, size=n_stimuli)
     
     return measurements, measurements_noisy
 
-def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, sources, noise = 0, noise_seed=2002):
+def generate_measurements_linear_and_sigmoid_cases(states, H, state_dim, aug_state_dim, sources, noise = 1e-2, noise_seed=2002):
 
     n_time_points = states.shape[0]
-    measurements = np.zeros((n_time_points, 2))
+    measurements = np.zeros((n_time_points, 3))
     measurements[0] = H @ states[0][0:state_dim]
     for t in range(1, n_time_points):
         measurements[t] = H @ states[t][0:state_dim]
 
     rng = rnd.default_rng(noise_seed)
-    measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(2), cov=np.eye(2) * noise, size = n_time_points)
+    measurements_noisy = measurements + rng.multivariate_normal(mean=np.zeros(3), cov=np.eye(3) * noise, size = n_time_points)
     
     return measurements, measurements_noisy
 
@@ -112,7 +108,7 @@ def generate_synthetic_data(period_square, total_time, n_time_points, params_x, 
         measurements, measurements_noisy = generate_measurements_linear_and_sigmoid_cases(states, **params_y)
 
     elif model == 'dcm':
-        stimuli = np.array([stimuli, stimuli]).T
+        stimuli = np.array([stimuli, np.zeros(n_time_points), np.zeros(n_time_points)]).T
         states = generate_states_for_dcm_case(stimuli, **params_x)
         measurements, measurements_noisy = generate_measurements_dcm_case(states, **params_y)
     

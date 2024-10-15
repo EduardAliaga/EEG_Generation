@@ -14,7 +14,7 @@ def f_x3(x, dt):
      return x[3] + dt * x[6]
 
 def f_x4(x, u, dt, theta, H_e, tau_e, gamma_1, C_f, C_l, C_u):
-     return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(2)) @ (jax.nn.sigmoid(x[0] * theta)-0.5) + C_u @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
+     return x[4] + dt * (H_e/tau_e * ((C_f + C_l + gamma_1 * np.eye(3)) @ (jax.nn.sigmoid(x[0] * theta)-0.5) + C_u @ u) - 2*x[4]/tau_e - x[1]/tau_e**2)
 
 def f_x5(x, dt, theta, H_e, tau_e, gamma_2, C_b, C_l):
      return x[5] + dt * (H_e/tau_e * ((C_b + C_l) @ (jax.nn.sigmoid(x[0] * theta) - 0.5) + gamma_2 * (jax.nn.sigmoid(x[3] * theta) - 0.5)) - 2 * x[5]/tau_e - x[2]/tau_e**2)
